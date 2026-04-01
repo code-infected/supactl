@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useProjectStore } from "../store/projectStore";
 import { createManagementClient } from "../lib/management-api";
+import { ResizablePanel } from "../components/ResizablePanel";
 
 interface EdgeFunction {
   id: string;
@@ -98,7 +99,7 @@ export default function EdgeFunctionLogs() {
     <div className="flex h-full w-full overflow-hidden bg-background font-sans text-on-surface">
       
       {/* 1. Left Function List */}
-      <aside className="w-[240px] bg-surface-container-lowest flex flex-col shrink-0 border-r border-white/5">
+      <ResizablePanel side="left" defaultWidth={240} minWidth={180} maxWidth={380} className="bg-surface-container-lowest flex flex-col border-r border-white/5">
         <div className="p-4 border-b border-white/5 shrink-0">
           <div className="relative">
             <span className="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[14px]">search</span>
@@ -170,7 +171,7 @@ export default function EdgeFunctionLogs() {
             );
           })}
         </nav>
-      </aside>
+      </ResizablePanel>
 
       {/* 2. Main Log Stream */}
       <section className="flex-1 bg-surface-container flex flex-col overflow-hidden">
@@ -274,7 +275,7 @@ export default function EdgeFunctionLogs() {
       </section>
 
       {/* 3. Right Stats Panel */}
-      <aside className="w-[280px] bg-surface-container flex flex-col shrink-0 border-l border-white/5">
+      <ResizablePanel side="right" defaultWidth={280} minWidth={220} maxWidth={400} className="bg-surface-container flex flex-col border-l border-white/5">
         <div className="p-6 border-b border-white/5 shrink-0">
           <h3 className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono mb-6">Execution Stats</h3>
           
@@ -310,7 +311,7 @@ export default function EdgeFunctionLogs() {
             )}
           </div>
         </div>
-      </aside>
+      </ResizablePanel>
     </div>
   );
 }

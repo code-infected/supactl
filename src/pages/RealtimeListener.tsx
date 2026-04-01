@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useProjectStore } from "../store/projectStore";
 import { createSupabaseClient } from "../lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { ResizablePanel } from "../components/ResizablePanel";
 
 interface RealtimeEvent {
   id: string;
@@ -160,7 +161,7 @@ export default function RealtimeListener() {
       <div className="flex flex-1 min-h-0">
         
         {/* 2. Left Subscriptions Panel */}
-        <aside className="w-[260px] bg-surface-container-lowest flex flex-col shrink-0 border-r border-white/5">
+        <ResizablePanel side="left" defaultWidth={260} minWidth={200} maxWidth={400} className="bg-surface-container-lowest flex flex-col border-r border-white/5">
           <div className="p-4 border-b border-white/5 shrink-0 flex items-center justify-between">
             <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Subscriptions</span>
           </div>
@@ -193,7 +194,7 @@ export default function RealtimeListener() {
               </button>
             </div>
           </nav>
-        </aside>
+        </ResizablePanel>
 
         {/* 3. Main Event Stream */}
         <section className="flex-1 bg-[#0e0e0e] flex flex-col overflow-hidden relative">
@@ -259,7 +260,7 @@ export default function RealtimeListener() {
         </section>
 
         {/* 4. Right Counters Panel */}
-        <aside className="w-[280px] bg-surface-container flex flex-col shrink-0 border-l border-white/5 overflow-y-auto">
+        <ResizablePanel side="right" defaultWidth={280} minWidth={220} maxWidth={400} className="bg-surface-container flex flex-col border-l border-white/5 overflow-y-auto">
           <div className="p-6">
             <h3 className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono mb-6">Metrics</h3>
             
@@ -289,7 +290,7 @@ export default function RealtimeListener() {
               </div>
             </div>
           </div>
-        </aside>
+        </ResizablePanel>
 
       </div>
     </div>

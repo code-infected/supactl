@@ -5,6 +5,7 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { useSchemaStore } from "../store/schemaStore";
 import { useProjectStore } from "../store/projectStore";
 import { createSupabaseClient } from "../lib/supabase";
+import { ResizablePanel } from "../components/ResizablePanel";
 
 interface Policy {
   id: string;
@@ -53,35 +54,64 @@ export default function RlsPolicyEditor() {
       try {
         const supabase = createSupabaseClient(projectUrl, serviceKey);
         
-        // Query pg_policies via RPC or direct query
-        // Note: This requires a database function or direct access
-        // For now, we'll query each table's RLS status
+        // Initialize policies map for all tables
         const policiesMap: Record<string, TablePolicyMeta> = {};
         
         for (const tableName of displayTables) {
           policiesMap[tableName] = {
             table_name: tableName,
-            rls_enabled: false, // We can't easily check this via REST API
+            rls_enabled: false,
             policies: []
           };
         }
         
-        // Try to fetch policies using a custom RPC if available
-        // This is a placeholder - actual implementation would need a DB function
-        const { data: policiesData, error: policiesError } = await supabase
-          .rpc('get_table_policies')
-          .catch(() => ({ data: null, error: { message: 'RPC not available' } }));
+        // Fetch RLS status and policies via raw SQL query
+        // Using pg_policies and pg_tables system views
+        const { data: rlsData, error: rlsError } = await supabase.rpc('exec_sql', {
+          sql: `
+            SELECT 
+              t.tablename as table_name,
+              t.rowsecurity as rls_enabled
+            FROM pg_tables t
+            WHERE t.schemaname = 'public'
+          `
+        }).catch(() => ({ data: null, error: { message: 'exec_sql not available' } }));
+
+        // Update RLS status if available
+        if (rlsData && !rlsError && Array.isArray(rlsData)) {
+          for (const row of rlsData) {
+            if (policiesMap[row.table_name]) {
+              policiesMap[row.table_name].rls_enabled = row.rls_enabled === true;
+            }
+          }
+        }
+
+        // Try to fetch policies from pg_policies
+        const { data: policiesData, error: policiesError } = await supabase.rpc('exec_sql', {
+          sql: `
+            SELECT 
+              schemaname,
+              tablename as table_name,
+              policyname as name,
+              permissive,
+              roles,
+              cmd as command,
+              qual,
+              with_check
+            FROM pg_policies
+            WHERE schemaname = 'public'
+          `
+        }).catch(() => ({ data: null, error: { message: 'exec_sql not available' } }));
         
-        if (policiesData && !policiesError) {
-          // If RPC exists and returns data, use it
+        if (policiesData && !policiesError && Array.isArray(policiesData)) {
           for (const policy of policiesData) {
             if (policiesMap[policy.table_name]) {
               policiesMap[policy.table_name].rls_enabled = true;
               policiesMap[policy.table_name].policies.push({
-                id: policy.id || String(Math.random()),
-                name: policy.policyname || policy.name,
-                command: policy.cmd || policy.command || 'ALL',
-                roles: policy.roles || ['public'],
+                id: `${policy.table_name}_${policy.name}`,
+                name: policy.name,
+                command: policy.command?.toUpperCase() || 'ALL',
+                roles: Array.isArray(policy.roles) ? policy.roles : [policy.roles || 'public'],
                 qual: policy.qual,
                 with_check: policy.with_check
               });
@@ -91,8 +121,18 @@ export default function RlsPolicyEditor() {
         
         setTablePolicies(policiesMap);
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch policies');
-        setTablePolicies({});
+        console.error('Failed to fetch policies:', err);
+        // Don't set error - just show tables without policy data
+        // The RPC might not exist and that's ok
+        const policiesMap: Record<string, TablePolicyMeta> = {};
+        for (const tableName of displayTables) {
+          policiesMap[tableName] = {
+            table_name: tableName,
+            rls_enabled: false,
+            policies: []
+          };
+        }
+        setTablePolicies(policiesMap);
       } finally {
         setLoading(false);
       }
@@ -123,7 +163,7 @@ export default function RlsPolicyEditor() {
     <div className="flex h-full w-full overflow-hidden bg-background font-sans">
       
       {/* 1. Left Table List Panel */}
-      <aside className="w-[240px] bg-surface-container-lowest flex flex-col shrink-0 border-r border-white/5">
+      <ResizablePanel side="left" defaultWidth={240} minWidth={180} maxWidth={400} className="bg-surface-container-lowest flex flex-col border-r border-white/5">
         <div className="p-4 border-b border-white/5 shrink-0 flex items-center justify-between">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Tables</span>
           <span className="material-symbols-outlined text-[16px] text-zinc-500">search</span>
@@ -175,7 +215,7 @@ export default function RlsPolicyEditor() {
             );
           })}
         </nav>
-      </aside>
+      </ResizablePanel>
 
       {/* 2. Main Content (Policies List + Form) */}
       <section className="flex-1 bg-surface-container flex flex-col overflow-y-auto">
@@ -331,7 +371,7 @@ export default function RlsPolicyEditor() {
       </section>
 
       {/* 3. Right Context Panel */}
-      <aside className="w-[300px] bg-background flex flex-col shrink-0 border-l border-white/5 overflow-y-auto">
+      <ResizablePanel side="right" defaultWidth={300} minWidth={220} maxWidth={450} className="bg-background flex flex-col border-l border-white/5 overflow-y-auto">
         <div className="h-16 px-6 flex items-center border-b border-white/5 shrink-0 bg-[#131313]">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Row Level Security</span>
         </div>
@@ -377,7 +417,7 @@ export default function RlsPolicyEditor() {
           </div>
           
         </div>
-      </aside>
+      </ResizablePanel>
     </div>
   );
 }

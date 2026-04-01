@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useProjectStore } from "../store/projectStore";
+import { ResizablePanel } from "../components/ResizablePanel";
 
 export default function ProjectKeys() {
   const { projectUrl, serviceKey, anonKey } = useProjectStore();
@@ -16,7 +17,7 @@ export default function ProjectKeys() {
   return (
     <div className="flex w-full h-full overflow-hidden bg-background font-sans text-on-surface">
       {/* Left Settings Sub-Nav */}
-      <aside className="w-[200px] bg-surface-container-lowest flex flex-col shrink-0 border-r border-white/5">
+      <ResizablePanel side="left" defaultWidth={200} minWidth={160} maxWidth={300} className="bg-surface-container-lowest flex flex-col border-r border-white/5">
         <div className="h-10 px-4 flex items-center border-b border-white/5">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Project Settings</span>
         </div>
@@ -38,7 +39,7 @@ export default function ProjectKeys() {
             Webhooks
           </a>
         </nav>
-      </aside>
+      </ResizablePanel>
 
       {/* Main Form */}
       <section className="flex-1 overflow-y-auto bg-surface-container relative">
@@ -178,7 +179,7 @@ export default function ProjectKeys() {
       </section>
 
       {/* Right Context Panel */}
-      <aside className="w-[260px] bg-background border-l border-white/5 flex flex-col shrink-0 overflow-y-auto">
+      <ResizablePanel side="right" defaultWidth={260} minWidth={200} maxWidth={380} className="bg-background border-l border-white/5 flex flex-col overflow-y-auto">
         <div className="p-6 space-y-8">
           
           <section className="space-y-4">
@@ -225,7 +226,7 @@ export default function ProjectKeys() {
           </section>
 
         </div>
-      </aside>
+      </ResizablePanel>
 
     </div>
   );

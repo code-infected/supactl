@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useProjectStore } from "../store/projectStore";
 import { createSupabaseClient } from "../lib/supabase";
+import { ResizablePanel } from "../components/ResizablePanel";
 
 export default function AuthUsers() {
   const [search, setSearch] = useState("");
@@ -51,7 +52,7 @@ export default function AuthUsers() {
     <div className="flex h-full w-full overflow-hidden bg-background font-sans">
       
       {/* 1. Left Sub-Panel: Navigation */}
-      <aside className="w-[200px] bg-surface-container-lowest flex flex-col shrink-0 border-r border-white/5">
+      <ResizablePanel side="left" defaultWidth={200} minWidth={160} maxWidth={300} className="bg-surface-container-lowest flex flex-col border-r border-white/5">
         <div className="h-10 px-4 flex items-center border-b border-white/5">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Authentication</span>
         </div>
@@ -65,7 +66,7 @@ export default function AuthUsers() {
             Policies
           </a>
         </nav>
-      </aside>
+      </ResizablePanel>
 
       {/* 2. Center Panel: Users List */}
       <section className="flex-1 bg-surface-container flex flex-col overflow-hidden">
@@ -151,7 +152,7 @@ export default function AuthUsers() {
       </section>
 
       {/* 3. Right Panel: Stats & Detail */}
-      <aside className="w-[380px] bg-background flex flex-col shrink-0 border-l border-white/5">
+      <ResizablePanel side="right" defaultWidth={380} minWidth={280} maxWidth={500} className="bg-background flex flex-col border-l border-white/5">
         {/* Stats Row */}
         <div className="grid grid-cols-2 gap-px bg-white/5 border-b border-white/5 shrink-0">
           <div className="bg-background p-4 text-center">
@@ -297,7 +298,7 @@ export default function AuthUsers() {
             </>
           )}
         </div>
-      </aside>
+      </ResizablePanel>
     </div>
   );
 }

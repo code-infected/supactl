@@ -4,6 +4,7 @@ import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { useProjectStore } from "../store/projectStore";
 import { createManagementClient } from "../lib/management-api";
+import { ResizablePanel } from "../components/ResizablePanel";
 
 interface Migration {
   id: string;
@@ -96,7 +97,7 @@ export default function MigrationsTracker() {
     <div className="flex h-full w-full overflow-hidden bg-background font-sans">
       
       {/* 1. Left Timeline Panel */}
-      <aside className="w-[300px] bg-surface-container flex flex-col shrink-0 border-r border-white/5 relative z-10">
+      <ResizablePanel side="left" defaultWidth={300} minWidth={220} maxWidth={450} className="bg-surface-container flex flex-col border-r border-white/5 relative z-10">
         <div className="p-4 border-b border-white/5 shrink-0">
           <button className="w-full bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold transition-colors shadow-glow">
             <span className="material-symbols-outlined text-[16px]">add</span>
@@ -170,7 +171,7 @@ export default function MigrationsTracker() {
             })}
           </div>
         </div>
-      </aside>
+      </ResizablePanel>
 
       {/* 2. Main Viewer */}
       <section className="flex-1 bg-[#0e0e0e] flex flex-col overflow-hidden relative">
@@ -285,7 +286,7 @@ export default function MigrationsTracker() {
       </section>
 
       {/* 3. Right Metadata Panel */}
-      <aside className="w-[280px] bg-background flex flex-col shrink-0 border-l border-white/5 overflow-y-auto z-10">
+      <ResizablePanel side="right" defaultWidth={280} minWidth={220} maxWidth={400} className="bg-background flex flex-col border-l border-white/5 overflow-y-auto z-10">
         <div className="h-16 px-6 flex items-center border-b border-white/5 shrink-0 bg-[#131313]">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Metadata</span>
         </div>
@@ -348,7 +349,7 @@ export default function MigrationsTracker() {
 
         </div>
         )}
-      </aside>
+      </ResizablePanel>
 
     </div>
   );
