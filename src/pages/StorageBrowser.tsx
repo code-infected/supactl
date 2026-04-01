@@ -283,7 +283,7 @@ export default function StorageBrowser() {
       </section>
 
       {/* 3. Right Detail Panel */}
-      <aside className="w-[300px] bg-background flex flex-col shrink-0 border-l border-white/5">
+      <ResizablePanel side="right" defaultWidth={300} minWidth={200} maxWidth={450} className="bg-background flex flex-col border-l border-white/5">
         <div className="h-14 px-4 flex items-center border-b border-white/5 shrink-0 bg-[#131313]">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">File Details</span>
         </div>
@@ -351,7 +351,7 @@ export default function StorageBrowser() {
             <span className="text-xs font-mono">Select a file to view details</span>
           </div>
         )}
-      </aside>
+      </ResizablePanel>
     </div>
   );
 }

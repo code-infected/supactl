@@ -219,13 +219,77 @@ export default function AuthUsers() {
 
                 {/* Actions */}
                 <div className="space-y-2 pt-4 border-t border-white/5">
-                  <button className="w-full h-8 px-4 rounded-lg bg-surface-container-high hover:bg-surface-container-highest transition-colors text-xs font-medium text-slate-200 text-center flex items-center justify-center">
+                  <button 
+                    onClick={async () => {
+                      if (!projectUrl || !serviceKey || !selectedUser.email) return;
+                      try {
+                        const supabase = createSupabaseClient(projectUrl, serviceKey);
+                        const { error } = await supabase.auth.admin.generateLink({
+                          type: 'recovery',
+                          email: selectedUser.email
+                        });
+                        if (error) throw error;
+                        alert(`Recovery link generated and sent to ${selectedUser.email} (if SMTP is configured)`);
+                      } catch (err: any) {
+                        alert(`Failed to send reset: ${err.message}`);
+                      }
+                    }}
+                    className="w-full h-8 px-4 rounded-lg bg-surface-container-high hover:bg-surface-container-highest transition-colors text-xs font-medium text-slate-200 text-center flex items-center justify-center cursor-pointer"
+                  >
                     Send Password Reset
                   </button>
-                  <button className="w-full h-8 px-4 rounded-lg border border-error/30 hover:bg-error/10 transition-colors text-xs font-medium text-error text-center flex items-center justify-center">
-                    Ban User
+                  <button 
+                    onClick={async () => {
+                      if (!projectUrl || !serviceKey) return;
+                      const isBanned = !!selectedUser.banned_until;
+                      const newBanDuration = isBanned ? 'none' : '876000h'; // 100 years
+                      
+                      try {
+                        const supabase = createSupabaseClient(projectUrl, serviceKey);
+                        const { error, data } = await supabase.auth.admin.updateUserById(selectedUser.id, {
+                          ban_duration: newBanDuration
+                        });
+                        if (error) throw error;
+                        
+                        // Update local state
+                        setUsers(users.map(u => u.id === selectedUser.id ? { ...u, banned_until: data.user.banned_until } : u));
+                      } catch (err: any) {
+                        alert(`Failed to update ban status: ${err.message}`);
+                      }
+                    }}
+                    className={`w-full h-8 px-4 rounded-lg border transition-colors text-xs font-medium text-center flex items-center justify-center cursor-pointer ${
+                      selectedUser.banned_until 
+                        ? 'border-primary/30 hover:bg-primary/10 text-primary' 
+                        : 'border-error/30 hover:bg-error/10 text-error'
+                    }`}
+                  >
+                    {selectedUser.banned_until ? 'Unban User' : 'Ban User'}
                   </button>
-                  <button className="w-full h-8 px-4 rounded-lg bg-error/10 hover:bg-error/20 transition-colors text-xs font-medium text-error text-center flex items-center justify-center">
+                  <button 
+                    onClick={async () => {
+                      if (!projectUrl || !serviceKey) return;
+                      const confirmDelete = window.confirm(`Are you sure you want to permanently delete ${selectedUser.email}?`);
+                      if (!confirmDelete) return;
+                      
+                      try {
+                        const supabase = createSupabaseClient(projectUrl, serviceKey);
+                        const { error } = await supabase.auth.admin.deleteUser(selectedUser.id);
+                        if (error) throw error;
+                        
+                        // Remove from local state
+                        const updatedUsers = users.filter(u => u.id !== selectedUser.id);
+                        setUsers(updatedUsers);
+                        if (updatedUsers.length > 0) {
+                          setSelectedUserId(updatedUsers[0].id);
+                        } else {
+                          setSelectedUserId(null);
+                        }
+                      } catch (err: any) {
+                        alert(`Failed to delete user: ${err.message}`);
+                      }
+                    }}
+                    className="w-full h-8 px-4 rounded-lg bg-error/10 hover:bg-error/20 transition-colors text-xs font-medium text-error text-center flex items-center justify-center cursor-pointer"
+                  >
                     Delete User
                   </button>
                 </div>
