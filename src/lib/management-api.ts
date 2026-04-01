@@ -54,21 +54,37 @@ export class ManagementApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${MANAGEMENT_API_URL}${endpoint}`;
     
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`Management API error (${response.status}): ${errorBody}`);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        if (response.status === 401) {
+          throw new Error('Invalid or expired Management API token. Please generate a new token from supabase.com/dashboard/account/tokens');
+        }
+        if (response.status === 403) {
+          throw new Error('Access denied. Check that your token has access to this project.');
+        }
+        if (response.status === 404) {
+          throw new Error('Resource not found. Check your project reference.');
+        }
+        throw new Error(`API error (${response.status}): ${errorBody}`);
+      }
+
+      return response.json();
+    } catch (err: any) {
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Network error. Check your internet connection or the Management API might be blocking browser requests.');
+      }
+      throw err;
     }
-
-    return response.json();
   }
 
   /**
