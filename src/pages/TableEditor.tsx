@@ -3,21 +3,34 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useSchemaStore } from "../store/schemaStore";
 import { createSupabaseClient } from "../lib/supabase";
 import { useProjectStore } from "../store/projectStore";
+import { ResizablePanel } from "../components/ResizablePanel";
 
 export default function TableEditor() {
   const { tableName } = useParams<{ tableName: string }>();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   
-  const { tables: schemaTables } = useSchemaStore();
+  const { tables: schemaTables, isLoading: schemaLoading, error: schemaError, fetchSchema } = useSchemaStore();
   const { projectUrl, serviceKey } = useProjectStore();
   
   const [rows, setRows] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fallback to mock tables if schema is empty
-  const displayTables = schemaTables.length > 0 ? schemaTables : ["users", "profiles", "audit_log", "settings"];
+  // Get table names from schema
+  const displayTables = schemaTables.map(t => t.name);
+  
+  // Filter tables by search
+  const filteredTables = search 
+    ? displayTables.filter(t => t.toLowerCase().includes(search.toLowerCase()))
+    : displayTables;
+
+  // Auto-select first table if none selected
+  useEffect(() => {
+    if (!tableName && displayTables.length > 0) {
+      navigate(`/tables/${displayTables[0]}`, { replace: true });
+    }
+  }, [tableName, displayTables, navigate]);
 
   useEffect(() => {
     async function fetchTableData() {
@@ -54,13 +67,43 @@ export default function TableEditor() {
     <div className="flex h-full w-full overflow-hidden font-sans bg-background">
       
       {/* 1. Schema Browser (Left Column) */}
-      <aside className="w-[200px] bg-background flex flex-col shrink-0 border-r border-white/5">
+      <ResizablePanel side="left" defaultWidth={200} minWidth={150} maxWidth={350} className="bg-background flex flex-col border-r border-white/5">
         <div className="h-9 px-4 flex items-center justify-between border-b border-white/5 shrink-0">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest">Schema</span>
-          <span className="material-symbols-outlined text-zinc-600 text-[14px]">search</span>
+          {displayTables.length > 0 && (
+            <input 
+              type="text"
+              placeholder="Filter..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-20 bg-transparent border-none text-[10px] text-zinc-400 focus:outline-none"
+            />
+          )}
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-hide py-2">
-          {displayTables.map((t) => {
+          {schemaLoading ? (
+            <div className="p-4 text-zinc-500 text-xs text-center">
+              <span className="material-symbols-outlined text-[20px] block mb-2 opacity-50 animate-spin">autorenew</span>
+              Loading tables...
+            </div>
+          ) : schemaError ? (
+            <div className="p-4 text-error text-xs text-center">
+              <span className="material-symbols-outlined text-[20px] block mb-2 opacity-50">error</span>
+              <p className="mb-2">Failed to load schema</p>
+              <button 
+                onClick={() => projectUrl && serviceKey && fetchSchema(projectUrl, serviceKey)}
+                className="text-primary hover:underline text-[10px]"
+              >
+                Retry
+              </button>
+            </div>
+          ) : displayTables.length === 0 ? (
+            <div className="p-4 text-zinc-500 text-xs text-center">
+              <span className="material-symbols-outlined text-[20px] block mb-2 opacity-50">table_chart</span>
+              <p className="mb-1">No tables found</p>
+              <p className="text-[10px]">Create tables in your Supabase project</p>
+            </div>
+          ) : filteredTables.map((t) => {
             const isActive = t === tableName;
             return (
               <div 
@@ -79,7 +122,7 @@ export default function TableEditor() {
             );
           })}
         </div>
-      </aside>
+      </ResizablePanel>
 
       {/* 2. Table Editor Canvas (Center Panel) */}
       <section className="flex-1 flex flex-col bg-surface-container overflow-hidden">
@@ -204,38 +247,40 @@ export default function TableEditor() {
       </section>
 
       {/* 3. Table Info (Right Panel) */}
-      <aside className="w-[200px] h-full bg-surface-container-lowest border-l border-white/5 p-4 shrink-0 overflow-y-auto scrollbar-hide">
-        <h3 className="text-[10px] uppercase tracking-widest text-[#5c5b5b] font-mono mb-4">Table Info</h3>
-        {tableName ? (
-          <div className="space-y-6 font-mono">
-            <section>
-              <div className="text-[10px] text-[#5c5b5b] uppercase tracking-widest mb-1">Entity</div>
-              <div className="text-sm font-semibold text-on-surface">{tableName}</div>
-              <div className="text-[11px] text-zinc-500">schema: public</div>
-            </section>
-            
-            <section className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-zinc-500">Row Count</span>
-                <span className="text-xs text-on-surface">~ {rows.length}</span>
-              </div>
-            </section>
-            
-            <section>
-              <div className="text-[10px] text-[#5c5b5b] uppercase tracking-widest mb-2">Indexes</div>
-              <ul className="space-y-1">
-                <li className="text-[11px] bg-surface-container p-2 rounded border border-white/5 text-zinc-400">
-                  {tableName}_pkey <span className="text-[10px] opacity-50 block mt-0.5">primary key</span>
-                </li>
-              </ul>
-            </section>
-          </div>
-        ) : (
-          <div className="text-xs text-zinc-500 text-center mt-10">
-            No table selected
-          </div>
-        )}
-      </aside>
+      <ResizablePanel side="right" defaultWidth={200} minWidth={150} maxWidth={350} className="h-full bg-surface-container-lowest border-l border-white/5 overflow-y-auto scrollbar-hide">
+        <div className="p-4">
+          <h3 className="text-[10px] uppercase tracking-widest text-[#5c5b5b] font-mono mb-4">Table Info</h3>
+          {tableName ? (
+            <div className="space-y-6 font-mono">
+              <section>
+                <div className="text-[10px] text-[#5c5b5b] uppercase tracking-widest mb-1">Entity</div>
+                <div className="text-sm font-semibold text-on-surface">{tableName}</div>
+                <div className="text-[11px] text-zinc-500">schema: public</div>
+              </section>
+              
+              <section className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-zinc-500">Row Count</span>
+                  <span className="text-xs text-on-surface">~ {rows.length}</span>
+                </div>
+              </section>
+              
+              <section>
+                <div className="text-[10px] text-[#5c5b5b] uppercase tracking-widest mb-2">Indexes</div>
+                <ul className="space-y-1">
+                  <li className="text-[11px] bg-surface-container p-2 rounded border border-white/5 text-zinc-400">
+                    {tableName}_pkey <span className="text-[10px] opacity-50 block mt-0.5">primary key</span>
+                  </li>
+                </ul>
+              </section>
+            </div>
+          ) : (
+            <div className="text-xs text-zinc-500 text-center mt-10">
+              No table selected
+            </div>
+          )}
+        </div>
+      </ResizablePanel>
     </div>
   );
 }

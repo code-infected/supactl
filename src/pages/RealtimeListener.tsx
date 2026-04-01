@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-
-// Since connecting a real channel might fail without correct project config,
-// we'll rely on a solid React state system that accurately mimics the Realtime listener hook behavior.
+import { useState, useEffect, useRef } from "react";
+import { useProjectStore } from "../store/projectStore";
+import { createSupabaseClient } from "../lib/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface RealtimeEvent {
   id: string;
@@ -12,62 +12,98 @@ interface RealtimeEvent {
 }
 
 export default function RealtimeListener() {
+  const { projectUrl, serviceKey } = useProjectStore();
   const [isConnected, setIsConnected] = useState(false);
-  const [channelInput, setChannelInput] = useState("realtime:public:*");
+  const [channelInput, setChannelInput] = useState("public:*");
   const [events, setEvents] = useState<RealtimeEvent[]>([]);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   // Stats
   const [stats, setStats] = useState({ total: 0, inserts: 0, updates: 0, deletes: 0 });
 
-  // Simulate incoming events when connected
+  // Cleanup on unmount
   useEffect(() => {
-    if (!isConnected) return;
-    
-    let interval: NodeJS.Timeout;
-    
-    // Initial burst to populate screen
-    if (events.length === 0) {
-      const initEvents: RealtimeEvent[] = [
-        { id: "e1", timestamp: new Date().toISOString(), type: 'INSERT', table: 'profiles', payload: { id: 'uuid-1', username: 'new_user', status: 'online' } },
-        { id: "e2", timestamp: new Date(Date.now() - 5000).toISOString(), type: 'UPDATE', table: 'settings', payload: { old: { theme: 'light' }, new: { theme: 'dark' } } },
-        { id: "e3", timestamp: new Date(Date.now() - 15000).toISOString(), type: 'BROADCAST', table: null, payload: { event: 'cursor-pos', x: 420, y: 190 } },
-      ];
-      setEvents(initEvents);
-      setStats({ total: 3, inserts: 1, updates: 1, deletes: 0 });
-    }
-
-    interval = setInterval(() => {
-      // Simulate 30% chance of event every second
-      if (Math.random() > 0.7) {
-        const types: ('INSERT'|'UPDATE'|'DELETE'|'BROADCAST')[] = ['INSERT', 'UPDATE', 'DELETE', 'BROADCAST'];
-        const type = types[Math.floor(Math.random() * types.length)];
-        const newEvent: RealtimeEvent = {
-          id: `e_${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          type,
-          table: type === 'BROADCAST' ? null : ['profiles', 'messages', 'notifications'][Math.floor(Math.random() * 3)],
-          payload: { mock_key: "mock_val_" + Math.floor(Math.random() * 1000) }
-        };
-        
-        setEvents(prev => [newEvent, ...prev].slice(0, 100)); // Keep max 100 events
-        setStats(s => ({
-          total: s.total + 1,
-          inserts: s.inserts + (type === 'INSERT' ? 1 : 0),
-          updates: s.updates + (type === 'UPDATE' ? 1 : 0),
-          deletes: s.deletes + (type === 'DELETE' ? 1 : 0),
-        }));
+    return () => {
+      if (channelRef.current) {
+        channelRef.current.unsubscribe();
       }
-    }, 1000);
+    };
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [isConnected]); // intentionally excluded events.length check from deps to prevent closure issues
+  const addEvent = (type: RealtimeEvent['type'], table: string | null, payload: any) => {
+    const newEvent: RealtimeEvent = {
+      id: `e_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      type,
+      table,
+      payload
+    };
+    
+    setEvents(prev => [newEvent, ...prev].slice(0, 100));
+    setStats(s => ({
+      total: s.total + 1,
+      inserts: s.inserts + (type === 'INSERT' ? 1 : 0),
+      updates: s.updates + (type === 'UPDATE' ? 1 : 0),
+      deletes: s.deletes + (type === 'DELETE' ? 1 : 0),
+    }));
+  };
 
-  const toggleConnection = () => {
+  const toggleConnection = async () => {
     if (isConnected) {
+      // Disconnect
+      if (channelRef.current) {
+        await channelRef.current.unsubscribe();
+        channelRef.current = null;
+      }
       setIsConnected(false);
     } else {
-      setIsConnected(true);
+      // Connect
+      if (!projectUrl || !serviceKey) {
+        addEvent('BROADCAST', null, { error: 'No project connected. Please connect to a Supabase project first.' });
+        return;
+      }
+
+      try {
+        const supabase = createSupabaseClient(projectUrl, serviceKey);
+        
+        // Parse channel input - format: schema:table or just table
+        const parts = channelInput.split(':');
+        const schema = parts.length > 1 ? parts[0] : 'public';
+        const table = parts.length > 1 ? parts[1] : parts[0];
+        
+        const channel = supabase
+          .channel('realtime-listener')
+          .on(
+            'postgres_changes',
+            { 
+              event: '*', 
+              schema: schema,
+              table: table === '*' ? undefined : table
+            },
+            (payload) => {
+              const eventType = payload.eventType.toUpperCase() as 'INSERT' | 'UPDATE' | 'DELETE';
+              addEvent(eventType, payload.table, {
+                new: payload.new,
+                old: payload.old
+              });
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              setIsConnected(true);
+              addEvent('BROADCAST', null, { message: `Connected to ${schema}:${table}` });
+            } else if (status === 'CHANNEL_ERROR') {
+              setIsConnected(false);
+              addEvent('BROADCAST', null, { error: 'Channel error - check your connection settings' });
+            }
+          });
+
+        channelRef.current = channel;
+      } catch (err: any) {
+        addEvent('BROADCAST', null, { error: err.message || 'Failed to connect' });
+        setIsConnected(false);
+      }
     }
   };
 

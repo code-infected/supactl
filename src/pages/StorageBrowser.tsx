@@ -30,34 +30,35 @@ export default function StorageBrowser() {
   const [activeBucket, setActiveBucket] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileObject | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  
-  // Example dummy buckets/files if we have no connection or empty state
-  const mockBuckets: Bucket[] = [
-    { id: "avatars", name: "avatars", public: true, created_at: "", updated_at: "" },
-    { id: "documents", name: "documents", public: false, created_at: "", updated_at: "" }
-  ];
 
   useEffect(() => {
     async function fetchBuckets() {
       if (!projectUrl || !serviceKey) {
-        setBuckets(mockBuckets);
-        setActiveBucket(mockBuckets[0].id);
+        setBuckets([]);
+        setActiveBucket(null);
         return;
       }
+      setLoading(true);
+      setError(null);
       try {
         const supabase = createSupabaseClient(projectUrl, serviceKey);
-        const { data } = await supabase.storage.listBuckets();
+        const { data, error: fetchError } = await supabase.storage.listBuckets();
+        if (fetchError) throw fetchError;
         if (data && data.length > 0) {
           setBuckets(data as Bucket[]);
           setActiveBucket(data[0].id);
         } else {
-          setBuckets(mockBuckets);
-          setActiveBucket(mockBuckets[0].id);
+          setBuckets([]);
+          setActiveBucket(null);
         }
-      } catch (e) {
-        setBuckets(mockBuckets);
-        setActiveBucket(mockBuckets[0].id);
+      } catch (e: any) {
+        setError(e.message || 'Failed to fetch buckets');
+        setBuckets([]);
+        setActiveBucket(null);
+      } finally {
+        setLoading(false);
       }
     }
     fetchBuckets();
@@ -65,21 +66,25 @@ export default function StorageBrowser() {
 
   useEffect(() => {
     async function fetchFiles() {
-      if (!activeBucket || !projectUrl || !serviceKey) return;
+      if (!activeBucket || !projectUrl || !serviceKey) {
+        setFiles([]);
+        return;
+      }
       setLoading(true);
+      setError(null);
       try {
         const supabase = createSupabaseClient(projectUrl, serviceKey);
-        const { data } = await supabase.storage.from(activeBucket).list();
+        const { data, error: fetchError } = await supabase.storage.from(activeBucket).list();
+        if (fetchError) throw fetchError;
         if (data) {
           setFiles(data as any[]);
           setSelectedFile(null);
+        } else {
+          setFiles([]);
         }
-      } catch (e) {
-        // Fallback to fake data
-        setFiles([
-          { name: "avatar_1.png", id: "1", updated_at: new Date().toISOString(), created_at: new Date().toISOString(), last_accessed_at: "", metadata: { size: 102400, mimetype: "image/png", cacheControl: "3600" } },
-          { name: "hero_banner.jpg", id: "2", updated_at: new Date().toISOString(), created_at: new Date().toISOString(), last_accessed_at: "", metadata: { size: 450000, mimetype: "image/jpeg", cacheControl: "3600" } }
-        ]);
+      } catch (e: any) {
+        setError(e.message || 'Failed to fetch files');
+        setFiles([]);
         setSelectedFile(null);
       } finally {
         setLoading(false);
@@ -114,7 +119,17 @@ export default function StorageBrowser() {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto w-full py-2 space-y-1">
-          {buckets.map(bucket => {
+          {!projectUrl || !serviceKey ? (
+            <div className="p-4 text-zinc-500 text-xs text-center">
+              <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">folder</span>
+              Connect to a project to see storage buckets.
+            </div>
+          ) : buckets.length === 0 ? (
+            <div className="p-4 text-zinc-500 text-xs text-center">
+              <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">folder_open</span>
+              No buckets found. Create one to get started.
+            </div>
+          ) : buckets.map(bucket => {
             const isActive = bucket.id === activeBucket;
             return (
               <div 

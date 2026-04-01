@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { useProjectStore } from "../store/projectStore";
+import { createManagementClient } from "../lib/management-api";
 
 interface Migration {
   id: string;
   name: string;
+  version: string;
   status: 'applied' | 'pending' | 'failed';
   timestamp: string;
   executionTimeMs: number;
@@ -18,74 +21,67 @@ interface Migration {
 }
 
 export default function MigrationsTracker() {
-  const [activeMigrationId, setActiveMigrationId] = useState<string>("m1");
+  const { projectUrl, serviceKey, managementToken, projectRef } = useProjectStore();
+  const [activeMigrationId, setActiveMigrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'sql' | 'diff'>('sql');
+  
+  const [migrations, setMigrations] = useState<Migration[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const mockMigrations: Migration[] = [
-    {
-      id: "m1",
-      name: "20231024143000_create_profiles.sql",
-      status: 'pending',
-      timestamp: "Pending local application",
-      executionTimeMs: 0,
-      tables: ["profiles", "audit_log"],
-      sql: `-- Migration to create the standard profiles table attached to auth.users
-CREATE TABLE public.profiles (
-  id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  created_at timestamp with time zone default now(),
-  username text unique,
-  avatar_url text,
-  status text check (status in ('online', 'offline', 'away')),
-  primary key (id)
-);
+  const isConnected = projectUrl && serviceKey;
+  const hasManagementApi = managementToken && projectRef;
 
--- Turn on RLS
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;`,
-      diff: {
-        added: [
-          "CREATE TABLE public.profiles (",
-          "  id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,",
-          "  created_at timestamp with time zone default now(),",
-          "  username text unique,",
-          "  avatar_url text,",
-          "  status text check (status in ('online', 'offline', 'away')),",
-          "  primary key (id)",
-          ");",
-          "",
-          "ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;"
-        ],
-        removed: []
-      }
-    },
-    {
-      id: "m2",
-      name: "20230915120000_update_schema.sql",
-      status: 'applied',
-      timestamp: "2023-09-15 12:00:05",
-      executionTimeMs: 245,
-      tables: ["settings"],
-      sql: "ALTER TABLE settings \nADD COLUMN is_active boolean default true;\n",
-      diff: {
-        added: ["ADD COLUMN is_active boolean default true;"],
-        removed: ["-- No columns removed in this migration"]
-      }
-    },
-    {
-      id: "m3",
-      name: "20230801100000_initial_setup.sql",
-      status: 'applied',
-      timestamp: "2023-08-01 10:00:15",
-      executionTimeMs: 1450,
-      tables: ["users", "teams"],
-      sql: "CREATE TABLE extensions (name text);\n-- Seed data created",
-      diff: {
-        added: ["CREATE TABLE extensions (name text);", "-- Seed data created"],
-        removed: []
-      }
+  // Fetch migrations when management token is available
+  useEffect(() => {
+    if (!hasManagementApi) {
+      setMigrations([]);
+      return;
     }
-  ];
 
-  const activeMigration = mockMigrations.find(m => m.id === activeMigrationId) || mockMigrations[0];
+    const fetchMigrations = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const client = createManagementClient(managementToken!, projectRef!);
+        const data = await client.listMigrations();
+        
+        // Transform API response to our Migration interface
+        const transformed: Migration[] = data.map((m, index) => ({
+          id: m.version,
+          name: m.name || `Migration ${m.version}`,
+          version: m.version,
+          status: 'applied' as const, // API only returns applied migrations
+          timestamp: m.version, // Version is timestamp-based
+          executionTimeMs: 0, // Not provided by API
+          tables: [], // Would need to parse SQL to extract
+          sql: m.statements?.join('\n\n') || '-- No SQL content available',
+          diff: {
+            added: m.statements || [],
+            removed: [],
+          },
+        }));
+        
+        setMigrations(transformed);
+        
+        // Auto-select first migration
+        if (transformed.length > 0 && !activeMigrationId) {
+          setActiveMigrationId(transformed[0].id);
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch migrations:', err);
+        setError(err.message || 'Failed to fetch migrations');
+        setMigrations([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMigrations();
+  }, [hasManagementApi, managementToken, projectRef]);
+
+  const activeMigration = migrations.find(m => m.id === activeMigrationId) || null;
 
   const getStatusBadge = (status: string) => {
     switch(status) {
@@ -112,7 +108,43 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;`,
           <div className="absolute left-[27px] top-6 bottom-4 w-px bg-white/10 -z-10"></div>
           
           <div className="space-y-6">
-            {mockMigrations.map(m => {
+            {!isConnected ? (
+              <div className="p-4 text-zinc-500 text-xs text-center">
+                <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">update</span>
+                Connect to a project to see migrations.
+              </div>
+            ) : !hasManagementApi ? (
+              <div className="p-4 text-zinc-500 text-xs text-center">
+                <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">key</span>
+                <p className="mb-2">Management API token required.</p>
+                <p className="text-[10px]">Add your token in Project Connection settings.</p>
+                <a 
+                  href="https://supabase.com/dashboard/account/tokens" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="text-primary hover:underline text-[10px] mt-2 inline-block"
+                >
+                  Get token →
+                </a>
+              </div>
+            ) : loading ? (
+              <div className="p-4 text-zinc-500 text-xs text-center">
+                <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50 animate-spin">autorenew</span>
+                Loading migrations...
+              </div>
+            ) : error ? (
+              <div className="p-4 text-error text-xs text-center">
+                <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">error</span>
+                <p className="mb-2">{error}</p>
+                <p className="text-[10px] text-zinc-500">Check your Management API token.</p>
+              </div>
+            ) : migrations.length === 0 ? (
+              <div className="p-4 text-zinc-500 text-xs text-center">
+                <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">schema</span>
+                <p className="mb-2">No migrations found.</p>
+                <p className="text-[10px]">Use the Supabase CLI to create migrations.</p>
+              </div>
+            ) : migrations.map(m => {
               const isActive = activeMigrationId === m.id;
               return (
                 <div 
@@ -129,7 +161,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;`,
                         {m.status}
                       </span>
                       <span className="text-[10px] text-zinc-500 font-mono">
-                        {m.status === 'pending' ? 'Not synced' : new Date(m.timestamp).toLocaleDateString()}
+                        {m.status === 'pending' ? 'Not synced' : m.version}
                       </span>
                     </div>
                   </div>
@@ -142,6 +174,21 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;`,
 
       {/* 2. Main Viewer */}
       <section className="flex-1 bg-[#0e0e0e] flex flex-col overflow-hidden relative">
+        {!activeMigration ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center text-zinc-500">
+              <span className="material-symbols-outlined text-[48px] block mb-4 opacity-50">schema</span>
+              <h3 className="text-lg font-medium text-slate-300 mb-2">No Migration Selected</h3>
+              <p className="text-xs max-w-sm">
+                {!isConnected 
+                  ? "Connect to a project to view migrations."
+                  : "Select a migration from the sidebar or create a new one using the Supabase CLI."
+                }
+              </p>
+            </div>
+          </div>
+        ) : (
+        <>
         {/* Toolbar */}
         <header className="px-6 py-4 border-b border-white/5 shrink-0 bg-[#131313] flex items-center justify-between">
           <div className="flex flex-col min-w-0 mr-4">
@@ -233,6 +280,8 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;`,
             </div>
           )}
         </div>
+        </>
+        )}
       </section>
 
       {/* 3. Right Metadata Panel */}
@@ -241,6 +290,14 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;`,
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Metadata</span>
         </div>
         
+        {!activeMigration ? (
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="text-zinc-500 text-xs text-center">
+              <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">info</span>
+              Select a migration to view details.
+            </div>
+          </div>
+        ) : (
         <div className="p-6 space-y-8">
           
           <div className="space-y-3">
@@ -274,7 +331,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;`,
              <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Dependency Chain</div>
              
              <div className="relative pl-3 border-l border-white/10 space-y-4">
-               {mockMigrations.filter(m => m.id !== activeMigrationId).reverse().map((m, i) => (
+               {migrations.filter(m => m.id !== activeMigrationId).reverse().map((m, i) => (
                  <div key={m.id} className="relative">
                    <div className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-surface-container-highest border-2 border-[#131313]"></div>
                    <div className="text-[10px] font-mono text-zinc-500 truncate">{m.name}</div>
@@ -290,6 +347,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;`,
           </div>
 
         </div>
+        )}
       </aside>
 
     </div>

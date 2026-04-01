@@ -1,9 +1,11 @@
-import React, { Component, ErrorInfo } from "react";
+import React, { Component, ErrorInfo, useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { TopNav } from "./components/shell/TopNav";
 import { Sidebar } from "./components/shell/Sidebar";
 import { StatusBar } from "./components/shell/StatusBar";
 import { useProjectStore } from "./store/projectStore";
+import { useSchemaStore } from "./store/schemaStore";
+import { getCredentials } from "./lib/storage";
 
 import Onboarding from "./pages/Onboarding";
 import TableEditor from "./pages/TableEditor";
@@ -15,6 +17,7 @@ import RlsPolicyEditor from "./pages/RlsPolicyEditor";
 import EdgeFunctionLogs from "./pages/EdgeFunctionLogs";
 import RealtimeListener from "./pages/RealtimeListener";
 import MigrationsTracker from "./pages/MigrationsTracker";
+import Projects from "./pages/Projects";
 
 class GlobalErrorBoundary extends Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: any) {
@@ -76,6 +79,49 @@ function RootRedirect() {
 }
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const setCredentials = useProjectStore((state) => state.setCredentials);
+  const setConnected = useProjectStore((state) => state.setConnected);
+  const fetchSchema = useSchemaStore((state) => state.fetchSchema);
+
+  // Load saved credentials on app startup
+  useEffect(() => {
+    const loadSavedCredentials = async () => {
+      try {
+        const saved = await getCredentials();
+        if (saved) {
+          setCredentials(
+            saved.projectUrl, 
+            saved.serviceRoleKey, 
+            saved.anonKey, 
+            saved.managementToken
+          );
+          setConnected(true);
+          
+          // Fetch database schema after connecting
+          await fetchSchema(saved.projectUrl, saved.serviceRoleKey);
+        }
+      } catch (err) {
+        console.error('Failed to load saved credentials:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSavedCredentials();
+  }, [setCredentials, setConnected, fetchSchema]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen w-screen bg-background text-white">
+        <div className="text-center">
+          <span className="material-symbols-outlined text-4xl text-primary animate-spin mb-4 block">autorenew</span>
+          <p className="text-sm text-zinc-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <GlobalErrorBoundary>
       <Router>
@@ -86,6 +132,7 @@ export default function App() {
             <Route path="/connect" element={<Onboarding />} />
             
             {/* Phase 1 - Protected */}
+            <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
             <Route path="/tables/:tableName?" element={<ProtectedRoute><TableEditor /></ProtectedRoute>} />
             <Route path="/sql" element={<ProtectedRoute><SqlEditor /></ProtectedRoute>} />
             <Route path="/auth" element={<ProtectedRoute><AuthUsers /></ProtectedRoute>} />

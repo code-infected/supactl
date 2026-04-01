@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CodeMirror from '@uiw/react-codemirror';
 import { sql as sqlLang } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { useSchemaStore } from "../store/schemaStore";
+import { useProjectStore } from "../store/projectStore";
+import { createSupabaseClient } from "../lib/supabase";
 
 interface Policy {
   id: string;
@@ -21,55 +23,90 @@ interface TablePolicyMeta {
 
 export default function RlsPolicyEditor() {
   const { tables } = useSchemaStore();
+  const { projectUrl, serviceKey } = useProjectStore();
   
-  // MOCK DATA since we can't query pg_policies via REST without an RPC
-  const mockTablePolicies: Record<string, TablePolicyMeta> = {
-    "profiles": {
-      table_name: "profiles",
-      rls_enabled: true,
-      policies: [
-        {
-          id: "1",
-          name: "Public profiles are viewable by everyone.",
-          command: "SELECT",
-          roles: ["anon", "authenticated"],
-          qual: "true",
-          with_check: null
-        },
-        {
-          id: "2",
-          name: "Users can insert their own profile.",
-          command: "INSERT",
-          roles: ["authenticated"],
-          qual: null,
-          with_check: "auth.uid() = id"
-        },
-        {
-          id: "3",
-          name: "Users can update own profile.",
-          command: "UPDATE",
-          roles: ["authenticated"],
-          qual: "auth.uid() = id",
-          with_check: "auth.uid() = id"
-        }
-      ]
-    },
-    "audit_log": {
-      table_name: "audit_log",
-      rls_enabled: false,
-      policies: []
-    }
-  };
+  const [tablePolicies, setTablePolicies] = useState<Record<string, TablePolicyMeta>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const displayTables = tables && tables.length > 0 ? tables : ["profiles", "audit_log", "users", "settings"];
-  const [activeTable, setActiveTable] = useState<string>("profiles");
+  const displayTables = tables && tables.length > 0 ? tables.map(t => t.name) : [];
+  const [activeTable, setActiveTable] = useState<string>("");
+
+  // Set initial active table when tables load
+  useEffect(() => {
+    if (displayTables.length > 0 && !activeTable) {
+      setActiveTable(displayTables[0]);
+    }
+  }, [displayTables, activeTable]);
+
+  // Fetch RLS policies for all tables
+  useEffect(() => {
+    async function fetchPolicies() {
+      if (!projectUrl || !serviceKey || displayTables.length === 0) {
+        setTablePolicies({});
+        return;
+      }
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const supabase = createSupabaseClient(projectUrl, serviceKey);
+        
+        // Query pg_policies via RPC or direct query
+        // Note: This requires a database function or direct access
+        // For now, we'll query each table's RLS status
+        const policiesMap: Record<string, TablePolicyMeta> = {};
+        
+        for (const tableName of displayTables) {
+          policiesMap[tableName] = {
+            table_name: tableName,
+            rls_enabled: false, // We can't easily check this via REST API
+            policies: []
+          };
+        }
+        
+        // Try to fetch policies using a custom RPC if available
+        // This is a placeholder - actual implementation would need a DB function
+        const { data: policiesData, error: policiesError } = await supabase
+          .rpc('get_table_policies')
+          .catch(() => ({ data: null, error: { message: 'RPC not available' } }));
+        
+        if (policiesData && !policiesError) {
+          // If RPC exists and returns data, use it
+          for (const policy of policiesData) {
+            if (policiesMap[policy.table_name]) {
+              policiesMap[policy.table_name].rls_enabled = true;
+              policiesMap[policy.table_name].policies.push({
+                id: policy.id || String(Math.random()),
+                name: policy.policyname || policy.name,
+                command: policy.cmd || policy.command || 'ALL',
+                roles: policy.roles || ['public'],
+                qual: policy.qual,
+                with_check: policy.with_check
+              });
+            }
+          }
+        }
+        
+        setTablePolicies(policiesMap);
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch policies');
+        setTablePolicies({});
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchPolicies();
+  }, [projectUrl, serviceKey, displayTables]);
 
   const [newPolicyName, setNewPolicyName] = useState("");
   const [newPolicyCmd, setNewPolicyCmd] = useState("SELECT");
   const [newPolicyUsing, setNewPolicyUsing] = useState("");
   const [newPolicyCheck, setNewPolicyCheck] = useState("");
 
-  const activeMeta = mockTablePolicies[activeTable] || { table_name: activeTable, rls_enabled: false, policies: [] };
+  const activeMeta = tablePolicies[activeTable] || { table_name: activeTable, rls_enabled: false, policies: [] };
 
   const getCmdColor = (cmd: string) => {
     switch (cmd) {
@@ -93,8 +130,15 @@ export default function RlsPolicyEditor() {
         </div>
         
         <nav className="flex-1 overflow-y-auto w-full py-2 space-y-1 p-2">
-          {displayTables.map(t => {
-            const meta = mockTablePolicies[t] || { policies: [] };
+          {loading ? (
+            <div className="p-4 text-zinc-500 text-xs text-center">Loading policies...</div>
+          ) : displayTables.length === 0 ? (
+            <div className="p-4 text-zinc-500 text-xs text-center">
+              <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">shield</span>
+              No tables found. Connect to a project to see RLS policies.
+            </div>
+          ) : displayTables.map(t => {
+            const meta = tablePolicies[t] || { policies: [] };
             const isActive = t === activeTable;
             const policyCount = meta.policies.length;
 

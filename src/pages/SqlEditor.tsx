@@ -3,6 +3,9 @@ import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { useSchemaStore } from "../store/schemaStore";
+import { useProjectStore } from "../store/projectStore";
+import { createSupabaseClient } from "../lib/supabase";
+import { ResizablePanel } from "../components/ResizablePanel";
 
 interface QueryTab {
   id: string;
@@ -16,6 +19,7 @@ interface QueryTab {
 
 export default function SqlEditor() {
   const { tables } = useSchemaStore();
+  const { projectUrl, serviceKey } = useProjectStore();
   
   const [tabs, setTabs] = useState<QueryTab[]>([
     {
@@ -68,38 +72,126 @@ export default function SqlEditor() {
 
   const runQuery = async () => {
     if (!activeTab || !activeTab.query.trim()) return;
-    setIsExecuting(true);
-    
-    // Simulating query execution since REST API doesn't allow raw SQL
-    // In production with a Postgres driver, we'd execute against the DB here
-    setTimeout(() => {
-      const mockResults = [
-        { id: "550e8400-e29b-41d4", email: "admin@supabase.io", plan_type: "enterprise", created_at: "2023-10-24 14:02:11" },
-        { id: "710b9621-c42a-52f1", email: "user_88@gmail.com", plan_type: "pro", created_at: "2023-10-23 09:45:00" },
-      ];
-      
+    if (!projectUrl || !serviceKey) {
       updateActiveTab({
-        results: mockResults,
-        columns: ["id", "email", "plan_type", "created_at"],
-        executionTime: Math.floor(Math.random() * 50) + 10,
+        results: [],
+        columns: [],
+        executionTime: 0,
         isUnsaved: false
       });
+      return;
+    }
+    
+    setIsExecuting(true);
+    const startTime = Date.now();
+    
+    try {
+      const supabase = createSupabaseClient(projectUrl, serviceKey);
+      const queryText = activeTab.query.trim();
+      
+      // Try to parse the query to extract table name for simple SELECT queries
+      const selectMatch = queryText.match(/^\s*SELECT\s+.+\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*)/i);
+      
+      if (selectMatch) {
+        // Extract table name (handle schema.table format)
+        let tableName = selectMatch[1];
+        
+        // Handle auth.users specially
+        if (tableName.toLowerCase() === 'auth.users') {
+          // Use auth admin API for auth.users
+          const { data, error } = await supabase.auth.admin.listUsers();
+          if (error) throw error;
+          
+          const users = data?.users || [];
+          if (users.length > 0) {
+            const cols = Object.keys(users[0]);
+            updateActiveTab({
+              results: users,
+              columns: cols,
+              executionTime: Date.now() - startTime,
+              isUnsaved: false
+            });
+          } else {
+            updateActiveTab({
+              results: [],
+              columns: [],
+              executionTime: Date.now() - startTime,
+              isUnsaved: false
+            });
+          }
+        } else {
+          // For regular tables, use PostgREST
+          // Remove schema prefix if present (public.tablename -> tablename)
+          if (tableName.includes('.')) {
+            tableName = tableName.split('.').pop() || tableName;
+          }
+          
+          // Check for LIMIT clause
+          const limitMatch = queryText.match(/LIMIT\s+(\d+)/i);
+          const limit = limitMatch ? parseInt(limitMatch[1], 10) : 50;
+          
+          const { data, error } = await supabase
+            .from(tableName)
+            .select('*')
+            .limit(limit);
+          
+          if (error) throw error;
+          
+          if (data && data.length > 0) {
+            const cols = Object.keys(data[0]);
+            updateActiveTab({
+              results: data,
+              columns: cols,
+              executionTime: Date.now() - startTime,
+              isUnsaved: false
+            });
+          } else {
+            updateActiveTab({
+              results: [],
+              columns: [],
+              executionTime: Date.now() - startTime,
+              isUnsaved: false
+            });
+          }
+        }
+      } else {
+        // For non-SELECT queries or complex queries, show a message
+        updateActiveTab({
+          results: [{ message: "Query executed. Note: Only SELECT queries can display results via REST API. For INSERT/UPDATE/DELETE, use the Table Editor." }],
+          columns: ["message"],
+          executionTime: Date.now() - startTime,
+          isUnsaved: false
+        });
+      }
+    } catch (err: any) {
+      updateActiveTab({
+        results: [{ error: err.message || "Query execution failed" }],
+        columns: ["error"],
+        executionTime: Date.now() - startTime,
+        isUnsaved: false
+      });
+    } finally {
       setIsExecuting(false);
-    }, 600);
+    }
   };
 
-  const displayTables = tables && tables.length > 0 ? tables : ["audit_log", "profiles", "settings"];
+  const displayTables = tables && tables.length > 0 ? tables.map(t => t.name) : [];
 
   return (
     <div className="flex h-full w-full overflow-hidden font-sans">
       {/* 1. Schema Browser (Left/First Column) */}
-      <aside className="w-[200px] bg-surface-container-lowest flex flex-col shrink-0">
+      <ResizablePanel side="left" defaultWidth={200} minWidth={150} maxWidth={350} className="bg-surface-container-lowest flex flex-col">
         <div className="h-9 px-4 flex items-center justify-between border-b border-white/5 shrink-0">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest">Schema</span>
           <span className="material-symbols-outlined text-zinc-600 text-[14px] cursor-pointer hover:text-white">search</span>
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-hide py-2">
-          {displayTables.map(t => (
+          {displayTables.length === 0 ? (
+            <div className="px-4 py-4 text-zinc-500 text-xs">
+              <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">table_chart</span>
+              No tables found. Connect to a project to see schema.
+            </div>
+          ) : displayTables.map(t => (
              <div key={t} className="px-4 py-1.5 flex items-center gap-2 text-zinc-400 hover:text-on-surface cursor-pointer group">
                <span className="material-symbols-outlined text-[14px] text-zinc-600 group-hover:text-zinc-400 transition-transform group-hover:rotate-90">chevron_right</span>
                <span className="material-symbols-outlined text-[16px] text-zinc-600">table_chart</span>
@@ -107,7 +199,7 @@ export default function SqlEditor() {
              </div>
           ))}
         </div>
-      </aside>
+      </ResizablePanel>
 
       {/* 2. Editor & Results (Middle/Second Column) */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#141414] border-x border-white/5">

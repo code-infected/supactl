@@ -1,9 +1,14 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useSchemaStore } from "../../store/schemaStore";
+import { useProjectStore } from "../../store/projectStore";
 
 export function TopNav() {
   const [os, setOs] = useState<"mac" | "win" | "linux" | "unknown">("unknown");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { fetchSchema } = useSchemaStore();
+  const { isConnected, projectUrl, serviceKey } = useProjectStore();
 
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();
@@ -19,6 +24,25 @@ export function TopNav() {
   const handleMinimize = () => getCurrentWindow().minimize();
   const handleToggleMaximize = () => getCurrentWindow().toggleMaximize();
   const handleClose = () => getCurrentWindow().close();
+
+  const handleRefresh = async () => {
+    if (!isConnected) return;
+    setIsRefreshing(true);
+    try {
+      if (projectUrl && serviceKey) {
+        await fetchSchema(projectUrl, serviceKey);
+      }
+      // Dispatch a custom event so other components (like TableEditor) know to reload their data
+      window.dispatchEvent(new CustomEvent('app-refresh'));
+      
+      // Artificial delay for UX so the user can clearly see the refresh happened
+      await new Promise(resolve => setTimeout(resolve, 600));
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const renderMacControls = () => (
     <div className="flex gap-2 mr-2">
@@ -63,6 +87,16 @@ export function TopNav() {
       </div>
       
       <div className="flex items-center gap-4 text-muted h-full" data-tauri-drag-region="true">
+        <button 
+          onClick={handleRefresh}
+          disabled={!isConnected || isRefreshing}
+          className={`hover:text-white transition-colors flex items-center justify-center ${isConnected ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`} 
+          title="Refresh Data"
+        >
+          <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin text-primary' : ''}`}>
+            refresh
+          </span>
+        </button>
         <button className="hover:text-white transition-colors flex items-center justify-center cursor-default" data-tauri-drag-region="false">
           <span className="material-symbols-outlined text-[18px]">search</span>
         </button>

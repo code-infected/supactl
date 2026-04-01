@@ -2,13 +2,11 @@ import { useState } from "react";
 import { useProjectStore } from "../store/projectStore";
 
 export default function ProjectKeys() {
-  const { projectUrl, serviceKey } = useProjectStore();
+  const { projectUrl, serviceKey, anonKey } = useProjectStore();
   const [showAnon, setShowAnon] = useState(false);
   const [showService, setShowService] = useState(false);
-  const [showJwt, setShowJwt] = useState(false);
-
-  // Mocking anon key since we might not have it in projectStore yet
-  const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9...";
+  
+  const isConnected = projectUrl && serviceKey;
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text || "");
@@ -92,23 +90,28 @@ export default function ProjectKeys() {
                 <input 
                   type={showAnon ? "text" : "password"}
                   readOnly 
-                  value={anonKey} 
+                  value={anonKey || "(Not configured)"} 
                   className="flex-1 bg-[#131313] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-slate-300 font-mono focus:outline-none"
                 />
                 <button 
                   onClick={() => setShowAnon(!showAnon)}
                   className="h-10 w-10 bg-[#131313] border border-white/10 hover:border-white/20 transition-colors rounded-lg flex items-center justify-center text-slate-400 hover:text-white"
+                  disabled={!anonKey}
                 >
                   <span className="material-symbols-outlined text-[16px]">{showAnon ? 'visibility_off' : 'visibility'}</span>
                 </button>
                 <button 
-                  onClick={() => handleCopy(anonKey)}
+                  onClick={() => handleCopy(anonKey || "")}
                   className="h-10 px-4 bg-[#131313] border border-white/10 hover:border-white/20 transition-colors rounded-lg flex items-center justify-center text-slate-400 hover:text-white"
+                  disabled={!anonKey}
                 >
                   <span className="material-symbols-outlined text-[16px]">content_copy</span>
                   <span className="ml-2 text-xs font-medium font-sans">Copy</span>
                 </button>
               </div>
+              {!anonKey && (
+                <p className="text-[11px] text-zinc-500 mt-1">Anon key not saved. Add it in Project Connection settings.</p>
+              )}
             </div>
 
             {/* Service Role Key */}
@@ -148,44 +151,26 @@ export default function ProjectKeys() {
 
           <hr className="border-white/5 my-4" />
 
-          {/* Bottom: JWT Settings */}
+          {/* Bottom: JWT Settings Info */}
           <div className="space-y-6">
             <div>
               <h2 className="text-lg font-light tracking-tight text-white headline-sm">JWT Settings</h2>
-              <p className="text-sm text-zinc-500 mt-1">Configure your JSON Web Tokens attributes.</p>
+              <p className="text-sm text-zinc-500 mt-1">JWT configuration is managed via the Supabase Dashboard.</p>
             </div>
             
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-[#5c5b5b] font-mono block">JWT Secret</label>
-              <div className="flex items-center gap-2">
-                <input 
-                  type={showJwt ? "text" : "password"}
-                  readOnly 
-                  value="super-secret-jwt-token-from-supabase" 
-                  className="flex-1 bg-[#131313] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-slate-300 font-mono focus:outline-none"
-                />
-                <button 
-                  onClick={() => setShowJwt(!showJwt)}
-                  className="h-10 w-10 bg-[#131313] border border-white/10 hover:border-white/20 transition-colors rounded-lg flex items-center justify-center text-slate-400 hover:text-white"
-                >
-                  <span className="material-symbols-outlined text-[16px]">{showJwt ? 'visibility_off' : 'visibility'}</span>
-                </button>
+            <div className="bg-surface-container-lowest border border-white/5 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <span className="material-symbols-outlined text-[20px] text-zinc-500 mt-0.5">info</span>
+                <div>
+                  <p className="text-xs text-zinc-400">
+                    JWT secrets and expiry settings can be viewed and modified in your Supabase project dashboard under 
+                    <span className="text-primary"> Settings → API</span>.
+                  </p>
+                  <p className="text-[11px] text-zinc-500 mt-2">
+                    These settings require Management API access which is not available via the service_role key.
+                  </p>
+                </div>
               </div>
-            </div>
-
-            <div className="space-y-2 w-1/2">
-              <label className="text-[10px] uppercase tracking-widest text-[#5c5b5b] font-mono block">JWT Expiry (seconds)</label>
-              <input 
-                type="number" 
-                defaultValue={3600} 
-                className="w-full bg-[#131313] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-slate-300 font-mono focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
-              />
-            </div>
-            
-            <div>
-              <button className="bg-primary text-background px-4 py-2 rounded-lg font-bold text-sm hover:brightness-110 transition-all shadow-glow mt-2">
-                Save JWT Settings
-              </button>
             </div>
           </div>
 
@@ -197,42 +182,25 @@ export default function ProjectKeys() {
         <div className="p-6 space-y-8">
           
           <section className="space-y-4">
-            <h3 className="text-[10px] uppercase tracking-widest text-[#5c5b5b] font-mono">System Health</h3>
+            <h3 className="text-[10px] uppercase tracking-widest text-[#5c5b5b] font-mono">Connection Status</h3>
             
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[14px] text-zinc-500">lock</span>
-                  <span className="text-xs text-slate-300">Auth</span>
-                </div>
-                <span className="w-2 h-2 rounded-full bg-primary shadow-glow"></span>
+            {!isConnected ? (
+              <div className="text-zinc-500 text-xs text-center py-4">
+                <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">link_off</span>
+                Not connected to a project.
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[14px] text-zinc-500">api</span>
-                  <span className="text-xs text-slate-300">PostgREST</span>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[14px] text-zinc-500">cloud</span>
+                    <span className="text-xs text-slate-300">Project</span>
+                  </div>
+                  <span className="w-2 h-2 rounded-full bg-primary shadow-glow"></span>
                 </div>
-                <span className="w-2 h-2 rounded-full bg-primary shadow-glow"></span>
+                <p className="text-[10px] text-zinc-500 break-all">{projectUrl}</p>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[14px] text-zinc-500">bolt</span>
-                  <span className="text-xs text-slate-300">Realtime</span>
-                </div>
-                <span className="w-2 h-2 rounded-full bg-primary shadow-glow"></span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[14px] text-zinc-500">database</span>
-                  <span className="text-xs text-slate-300">Database</span>
-                </div>
-                <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"></span>
-              </div>
-              <div className="text-[10px] text-amber-500/80 -mt-1 ml-6 leading-tight">CPU utilization high (82%)</div>
-            </div>
+            )}
           </section>
 
           <hr className="border-white/5" />
@@ -241,15 +209,15 @@ export default function ProjectKeys() {
             <h3 className="text-[10px] uppercase tracking-widest text-[#5c5b5b] font-mono">Quick Links</h3>
             
             <div className="space-y-2">
-              <a href="#" className="flex items-center justify-between group">
+              <a href="https://supabase.com/docs/guides/api" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between group">
                 <span className="text-xs text-primary group-hover:underline">Managing API Keys</span>
                 <span className="material-symbols-outlined text-[14px] text-primary opacity-0 group-hover:opacity-100 transition-opacity">arrow_outward</span>
               </a>
-              <a href="#" className="flex items-center justify-between group">
+              <a href="https://supabase.com/docs/guides/auth/row-level-security" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between group">
                 <span className="text-xs text-primary group-hover:underline">Understanding RLS</span>
                 <span className="material-symbols-outlined text-[14px] text-primary opacity-0 group-hover:opacity-100 transition-opacity">arrow_outward</span>
               </a>
-              <a href="#" className="flex items-center justify-between group">
+              <a href="https://supabase.com/docs/guides/auth/jwts" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between group">
                 <span className="text-xs text-primary group-hover:underline">JWT Configuration</span>
                 <span className="material-symbols-outlined text-[14px] text-primary opacity-0 group-hover:opacity-100 transition-opacity">arrow_outward</span>
               </a>

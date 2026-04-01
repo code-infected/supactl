@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProjectStore } from "../store/projectStore";
+import { useSchemaStore } from "../store/schemaStore";
 import { saveCredentials } from "../lib/storage";
 import { createSupabaseClient } from "../lib/supabase";
 
@@ -8,13 +9,18 @@ export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [url, setUrl] = useState("");
   const [key, setKey] = useState("");
+  const [anonKey, setAnonKey] = useState("");
+  const [managementToken, setManagementToken] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [showManagement, setShowManagement] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState("");
   const [isTesting, setIsTesting] = useState(false);
   
   const navigate = useNavigate();
   const setCredentials = useProjectStore((state) => state.setCredentials);
   const setConnected = useProjectStore((state) => state.setConnected);
+  const fetchSchema = useSchemaStore((state) => state.fetchSchema);
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,9 +50,13 @@ export default function Onboarding() {
          }
       }
 
-      await saveCredentials(url, key);
-      setCredentials(url, key);
+      await saveCredentials(url, key, anonKey || undefined, managementToken || undefined);
+      setCredentials(url, key, anonKey || undefined, managementToken || undefined);
       setConnected(true);
+      
+      // Fetch database schema after connecting
+      await fetchSchema(url, key);
+      
       setStep(3);
     } catch (err: any) {
       setError(err.message || "Failed to connect to the project");
@@ -122,6 +132,73 @@ export default function Onboarding() {
                 Never expose this key client-side. Fortunately, this is a native app.
               </p>
             </div>
+
+            {/* Advanced Options Toggle */}
+            <button 
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-2 text-xs text-muted hover:text-white transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {showAdvanced ? 'expand_less' : 'expand_more'}
+              </span>
+              {showAdvanced ? 'Hide' : 'Show'} Advanced Options
+            </button>
+
+            {showAdvanced && (
+              <div className="flex flex-col gap-5 p-4 bg-surface-high/50 rounded-lg border border-white/5">
+                {/* Anon Key (optional) */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#5c5b5b]">
+                    Anon Key <span className="text-muted font-normal">(optional)</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    value={anonKey}
+                    onChange={(e) => setAnonKey(e.target.value)}
+                    className="bg-surface-high border border-DEFAULT hover:border-hover focus:border-primary focus:outline-none rounded px-3 py-2 text-sm transition-colors"
+                  />
+                  <p className="text-[11px] text-muted">Public key for client-side operations. Displayed in API Keys page.</p>
+                </div>
+
+                {/* Management API Token */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#5c5b5b]">
+                    Management API Token <span className="text-muted font-normal">(optional)</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <input 
+                      type={showManagement ? "text" : "password"} 
+                      placeholder="sbp_xxxxxxxxxxxxxxxxxxxxxxxx"
+                      value={managementToken}
+                      onChange={(e) => setManagementToken(e.target.value)}
+                      className="bg-surface-high border border-DEFAULT hover:border-hover focus:border-primary focus:outline-none rounded px-3 py-2 text-sm w-full pr-10 transition-colors"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowManagement(!showManagement)}
+                      className="absolute right-2 text-muted hover:text-white transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {showManagement ? "visibility_off" : "visibility"}
+                      </span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-muted">
+                    Enables Edge Functions logs, migrations, and project settings.
+                    <a 
+                      href="https://supabase.com/dashboard/account/tokens" 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="text-primary hover:underline ml-1"
+                    >
+                      Get token →
+                    </a>
+                  </p>
+                </div>
+              </div>
+            )}
 
             {error && (
               <div className="bg-error/10 text-error border border-error/20 rounded p-3 text-sm">
