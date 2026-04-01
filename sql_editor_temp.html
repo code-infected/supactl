@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Supactl - SQL Editor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "surface-bright": "#3a3939",
+                "on-primary": "#003822",
+                "on-secondary-fixed": "#002112",
+                "on-secondary-fixed-variant": "#1f5037",
+                "on-tertiary": "#561f00",
+                "surface-container-highest": "#353534",
+                "on-error": "#690005",
+                "on-surface": "#e5e2e1",
+                "secondary": "#9fd2b2",
+                "tertiary-container": "#ffa072",
+                "secondary-fixed": "#baeecd",
+                "on-background": "#e5e2e1",
+                "surface-variant": "#353534",
+                "outline-variant": "#3d4a41",
+                "on-secondary-container": "#8ec0a1",
+                "on-primary-fixed-variant": "#005233",
+                "surface-dim": "#131313",
+                "on-tertiary-container": "#78350f",
+                "surface": "#131313",
+                "tertiary": "#ffc7ae",
+                "outline": "#869489",
+                "on-tertiary-fixed": "#351000",
+                "primary-fixed-dim": "#51df9c",
+                "surface-tint": "#51df9c",
+                "surface-container-high": "#2a2a2a",
+                "surface-container-lowest": "#0e0e0e",
+                "inverse-primary": "#006c45",
+                "on-surface-variant": "#bbcabe",
+                "error": "#ffb4ab",
+                "secondary-container": "#1f5037",
+                "surface-container-low": "#1c1b1b",
+                "secondary-fixed-dim": "#9fd2b2",
+                "on-tertiary-fixed-variant": "#76330d",
+                "primary-container": "#3ecf8e",
+                "tertiary-fixed": "#ffdbcc",
+                "primary-fixed": "#71fcb6",
+                "inverse-surface": "#e5e2e1",
+                "on-primary-fixed": "#002112",
+                "error-container": "#93000a",
+                "on-error-container": "#ffdad6",
+                "on-primary-container": "#005434",
+                "tertiary-fixed-dim": "#ffb694",
+                "surface-container": "#201f1f",
+                "on-secondary": "#023822",
+                "inverse-on-surface": "#313030",
+                "primary": "#60eca8",
+                "background": "#131313"
+              },
+              fontFamily: {
+                "headline": ["Inter", "sans-serif"],
+                "body": ["Inter", "sans-serif"],
+                "label": ["Inter", "sans-serif"],
+                "mono": ["Geist Mono", "monospace"]
+              },
+              borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 16px;
+        }
+        .syntax-keyword { color: #c084fc; }
+        .syntax-identifier { color: #60a5fa; }
+        .syntax-string { color: #3ECF8E; }
+        .syntax-number { color: #fbbf24; }
+        .syntax-comment { color: #71717a; font-style: italic; }
+        .syntax-null { color: #ef4444; }
+        
+        /* Hide scrollbars but keep functionality */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .pulse-glow {
+            box-shadow: 0 0 8px rgba(62,207,142,0.4);
+            animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .7; transform: scale(0.95); }
+        }
+    </style>
+</head>
+<body class="bg-[#1a1a1a] text-on-surface font-body overflow-hidden h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full h-10 bg-[#0e0e0e] z-50 flex items-center justify-between px-4">
+<div class="flex items-center">
+<div class="w-5 h-5 bg-[#3ECF8E] rounded-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-[#0e0e0e] text-[14px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<span class="text-sm font-bold text-white ml-12">Supactl</span>
+</div>
+<nav class="flex items-center gap-6 font-mono text-[11px] tracking-widest uppercase">
+<a class="text-zinc-500 hover:text-white transition-colors duration-200 cursor-pointer" href="#">Explorer</a>
+<a class="text-white font-bold transition-colors duration-200 cursor-pointer" href="#">Query</a>
+<a class="text-zinc-500 hover:text-white transition-colors duration-200 cursor-pointer" href="#">Logs</a>
+</nav>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#3ECF8E] text-[18px] cursor-pointer">cloud_done</span>
+<span class="material-symbols-outlined text-zinc-500 hover:text-white transition-colors cursor-pointer text-[18px]">notifications</span>
+</div>
+</header>
+<div class="flex flex-1 pt-10 pb-6 overflow-hidden">
+<!-- SideNavBar -->
+<nav class="w-[220px] h-full fixed left-0 top-0 bg-[#0e0e0e] flex flex-col py-4 z-40">
+<div class="px-6 mb-8 mt-2">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-[#1a1a1a] rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-[#3ECF8E] text-lg" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<div>
+<div class="text-lg font-bold text-white leading-none">Supactl</div>
+<div class="text-zinc-500 text-[10px] uppercase tracking-tighter mt-1">Management Console</div>
+</div>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar space-y-0.5">
+<a class="text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">folder</span>
+<span>Projects</span>
+</a>
+<a class="text-[#3ECF8E] border-l-2 border-[#3ECF8E] bg-[#1a1a1a] shadow-[0_0_8px_rgba(62,207,142,0.4)] px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">terminal</span>
+<span>SQL Editor</span>
+</a>
+<a class="text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">table_chart</span>
+<span>Tables</span>
+</a>
+<a class="text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Auth Users</span>
+</a>
+<a class="text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">database</span>
+<span>Storage</span>
+</a>
+<a class="text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span>Edge Logs</span>
+</a>
+<a class="text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">bolt</span>
+<span>Realtime</span>
+</a>
+<a class="text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">security</span>
+<span>RLS Policies</span>
+</a>
+<a class="text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">swap_calls</span>
+<span>Migrations</span>
+</a>
+<a class="text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-2 flex items-center gap-3 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</div>
+<div class="pt-4 border-t border-white/5 mt-2">
+<a class="text-zinc-500 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-1.5 flex items-center gap-3 font-sans text-xs transition-all" href="#">
+<span class="material-symbols-outlined text-sm">description</span>
+<span>Docs</span>
+</a>
+<a class="text-zinc-500 hover:bg-[#1a1a1a] hover:text-zinc-100 px-6 py-1.5 flex items-center gap-3 font-sans text-xs transition-all" href="#">
+<span class="material-symbols-outlined text-sm">help_outline</span>
+<span>Help</span>
+</a>
+</div>
+</nav>
+<!-- Main Content (3 Columns) -->
+<main class="ml-[220px] flex flex-1 overflow-hidden">
+<!-- 1. Schema Browser (Left/First Column) -->
+<aside class="w-[200px] bg-[#0e0e0e] flex flex-col">
+<div class="h-9 px-4 flex items-center justify-between border-b border-white/5">
+<span class="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest">Schema</span>
+<span class="material-symbols-outlined text-zinc-600 text-[14px]">search</span>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar py-2">
+<div class="px-4 py-1.5 flex items-center gap-2 text-zinc-400 hover:text-on-surface cursor-pointer group">
+<span class="material-symbols-outlined text-[14px] text-zinc-600 group-hover:text-zinc-400 transition-transform group-hover:rotate-90">chevron_right</span>
+<span class="material-symbols-outlined text-[16px] text-zinc-600">table_chart</span>
+<span class="text-xs font-medium">audit_log</span>
+</div>
+<div class="mb-2">
+<div class="px-4 py-1.5 flex items-center gap-2 text-[#3ECF8E] bg-[#1a1a1a] cursor-pointer">
+<span class="material-symbols-outlined text-[14px] rotate-90">chevron_right</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">table_chart</span>
+<span class="text-xs font-bold">profiles</span>
+</div>
+<div class="pl-11 pr-2 py-1 space-y-1">
+<div class="flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-1.5 text-on-surface">
+<span class="material-symbols-outlined text-[12px] text-amber-500" style="font-variation-settings: 'FILL' 1;">key</span>
+<span>id</span>
+</div>
+<span class="text-[#5c5b5b] text-[9px] font-mono">uuid</span>
+</div>
+<div class="flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-1.5 text-on-surface">
+<span class="material-symbols-outlined text-[12px] text-zinc-600">link</span>
+<span>user_id</span>
+</div>
+<span class="text-[#5c5b5b] text-[9px] font-mono">uuid</span>
+</div>
+</div>
+</div>
+<div class="px-4 py-1.5 flex items-center gap-2 text-zinc-400 hover:text-on-surface cursor-pointer">
+<span class="material-symbols-outlined text-[14px] text-zinc-600">chevron_right</span>
+<span class="material-symbols-outlined text-[16px] text-zinc-600">table_chart</span>
+<span class="text-xs font-medium">settings</span>
+</div>
+</div>
+</aside>
+<!-- 2. Editor & Results (Middle/Second Column) -->
+<div class="flex-1 flex flex-col min-w-0 bg-[#141414] border-x border-white/5">
+<!-- Tab Bar -->
+<div class="h-9 flex items-center bg-[#0e0e0e] border-b border-white/5">
+<div class="flex h-full items-center">
+<!-- Active Tab with Unsaved Indicator -->
+<div class="h-full px-4 flex items-center gap-2 bg-[#141414] border-t border-t-[#3ECF8E] text-on-surface text-xs font-mono relative">
+<span>query_1.sql</span>
+<span class="text-amber-500 text-[10px] leading-none mb-0.5">●</span>
+<span class="material-symbols-outlined text-[12px] text-zinc-500 hover:text-white cursor-pointer ml-1">close</span>
+</div>
+<!-- Inactive Tab -->
+<div class="h-full px-4 flex items-center gap-2 text-zinc-500 hover:text-zinc-300 text-xs font-mono border-r border-white/5 cursor-pointer">
+<span>query_2.sql</span>
+<span class="material-symbols-outlined text-[12px] opacity-0 hover:opacity-100">close</span>
+</div>
+<button class="px-3 h-full flex items-center text-zinc-500 hover:text-zinc-300 transition-colors">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+</div>
+<!-- Editor Area -->
+<div class="h-[40%] flex font-mono text-[13px] leading-relaxed relative overflow-hidden group">
+<div class="w-12 bg-[#0e0e0e]/30 text-[#5c5b5b] text-right pr-3 select-none py-4 border-r border-white/5">
+                    1<br/>2<br/>3<br/>4<br/>5<br/>6
+                </div>
+<div class="flex-1 py-4 px-4 overflow-y-auto no-scrollbar">
+<div>
+<span class="syntax-comment">-- Fetching recent active users with high credit scores</span><br/>
+<span class="syntax-keyword">SELECT</span> u.id, u.email, p.plan_type, p.created_at<br/>
+<span class="syntax-keyword">FROM</span> <span class="syntax-identifier">auth.users</span> u<br/>
+<span class="syntax-keyword">JOIN</span> <span class="syntax-identifier">public.profiles</span> p <span class="syntax-keyword">ON</span> u.id = p.id<br/>
+<span class="syntax-keyword">WHERE</span> p.credits &gt; <span class="syntax-number">500</span> <span class="syntax-keyword">AND</span> p.status <span class="syntax-keyword">IS NOT</span> <span class="syntax-null">NULL</span><br/>
+<span class="syntax-keyword">ORDER BY</span> p.created_at <span class="syntax-keyword">DESC</span>;<br/>
+</div>
+</div>
+</div>
+<!-- Toolbar -->
+<div class="h-10 bg-[#1a1a1a] border-y border-white/5 flex items-center justify-between px-3">
+<div class="flex items-center gap-2">
+<button class="bg-[#3ECF8E] text-[#0e0e0e] px-3 py-1 rounded flex items-center gap-1.5 font-bold text-xs hover:brightness-110 transition-all">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                        Run
+                        <span class="opacity-60 font-mono ml-1">⌘↵</span>
+</button>
+<button class="text-zinc-400 hover:bg-white/5 px-3 py-1 rounded text-xs font-medium transition-colors">Format</button>
+<button class="text-zinc-400 hover:bg-white/5 px-3 py-1 rounded text-xs font-medium transition-colors">Save</button>
+</div>
+<div class="font-mono text-[10px] text-[#5c5b5b] uppercase tracking-tight">4 rows · 2ms</div>
+</div>
+<!-- Results Table -->
+<div class="flex-1 overflow-auto no-scrollbar bg-[#0e0e0e]">
+<table class="w-full border-collapse text-left">
+<thead class="sticky top-0 bg-[#0e0e0e] z-10">
+<tr class="h-9 border-b border-white/5">
+<th class="px-4 text-[10px] font-mono font-bold text-[#5c5b5b] uppercase tracking-widest">id (uuid)</th>
+<th class="px-4 text-[10px] font-mono font-bold text-[#5c5b5b] uppercase tracking-widest">email (text)</th>
+<th class="px-4 text-[10px] font-mono font-bold text-[#5c5b5b] uppercase tracking-widest">plan_type (varchar)</th>
+<th class="px-4 text-[10px] font-mono font-bold text-[#5c5b5b] uppercase tracking-widest">created_at (timestamptz)</th>
+</tr>
+</thead>
+<tbody class="font-mono text-[12px]">
+<tr class="h-[36px] hover:bg-white/5 transition-colors border-b border-white/5">
+<td class="px-4 text-zinc-500 font-mono">550e8400-e29b-41d4...</td>
+<td class="px-4 text-on-surface">admin@supabase.io</td>
+<td class="px-4 text-on-surface">enterprise</td>
+<td class="px-4 text-zinc-500 font-mono">2023-10-24 14:02:11</td>
+</tr>
+<tr class="h-[36px] bg-white/[0.02] hover:bg-white/5 transition-colors border-b border-white/5">
+<td class="px-4 text-zinc-500 font-mono">710b9621-c42a-52f1...</td>
+<td class="px-4 text-on-surface">user_88@gmail.com</td>
+<td class="px-4 text-on-surface">pro</td>
+<td class="px-4 text-zinc-500 font-mono">2023-10-23 09:45:00</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- 3. Context Info (Right/Third Column) -->
+<aside class="w-[240px] bg-[#0e0e0e] flex flex-col">
+<div class="h-9 px-4 flex items-center border-b border-white/5">
+<span class="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest">Query History</span>
+</div>
+<div class="p-4 space-y-4">
+<div class="space-y-1">
+<div class="text-[10px] text-[#5c5b5b] uppercase tracking-widest">Explain Plan</div>
+<div class="bg-black/20 rounded p-2 font-mono text-[10px] text-zinc-500">
+                        Seq Scan on users  (cost=0.00..12.40 rows=240 width=218)
+                    </div>
+</div>
+<div class="space-y-1">
+<div class="text-[10px] text-[#5c5b5b] uppercase tracking-widest">Memory Usage</div>
+<div class="h-1 bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-[#3ECF8E] w-1/4"></div>
+</div>
+<div class="text-[9px] text-[#5c5b5b] font-mono">1.2 MB / 128 MB</div>
+</div>
+</div>
+</aside>
+</main>
+</div>
+<!-- Footer -->
+<footer class="h-6 w-full fixed bottom-0 left-0 right-0 z-50 bg-[#0e0e0e] border-t border-white/5 flex items-center px-4 justify-between font-mono text-[10px]">
+<div class="flex items-center gap-2 text-[#3ECF8E] animate-pulse">
+<span class="w-1.5 h-1.5 rounded-full bg-[#3ECF8E] pulse-glow"></span>
+<span>Connected</span>
+<span class="text-zinc-500 mx-1">•</span>
+<span class="text-zinc-500">Postgres 15.3</span>
+<span class="text-zinc-500 mx-1">•</span>
+<span class="text-zinc-500">db.supabase.co</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-[#3ECF8E] font-bold">v1.0.4-stable</span>
+</div>
+</footer>
+</body></html>

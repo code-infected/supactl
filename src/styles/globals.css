@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-white font-sans antialiased text-sm;
+    margin: 0;
+    overflow-x: hidden;
+    user-select: none; /* Desktop app feel */
+  }
+  
+  /* Make text selectable in specific elements */
+  input, textarea, [contenteditable], .selectable {
+    user-select: auto;
+  }
+}
+
+/* Scrollbar hide per CONTEXT.md */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}

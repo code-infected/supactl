@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+
+<html class="dark"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&amp;family=Geist:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Geist', sans-serif; }
+        .font-mono { font-family: 'Geist Mono', monospace; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 16px;
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .cell-focus:focus { outline: none; box-shadow: inset 0 0 0 1px #3ECF8E; }
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+            border-right: 2px solid #3ECF8E;
+        }
+        @keyframes blink {
+            from, to { border-color: transparent }
+            50% { border-color: #3ECF8E }
+        }
+        .green-glow { filter: drop-shadow(0 0 4px rgba(62,207,142,0.4)); }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#3a3939",
+                        "on-primary": "#003822",
+                        "on-secondary-fixed": "#002112",
+                        "on-secondary-fixed-variant": "#1f5037",
+                        "on-tertiary": "#561f00",
+                        "surface-container-highest": "#353534",
+                        "on-error": "#690005",
+                        "on-surface": "#e5e2e1",
+                        "secondary": "#9fd2b2",
+                        "tertiary-container": "#ffa072",
+                        "secondary-fixed": "#baeecd",
+                        "on-background": "#e5e2e1",
+                        "surface-variant": "#353534",
+                        "outline-variant": "#3d4a41",
+                        "on-secondary-container": "#8ec0a1",
+                        "on-primary-fixed-variant": "#005233",
+                        "surface-dim": "#131313",
+                        "on-tertiary-container": "#78350f",
+                        "surface": "#131313",
+                        "tertiary": "#ffc7ae",
+                        "outline": "#869489",
+                        "on-tertiary-fixed": "#351000",
+                        "primary-fixed-dim": "#51df9c",
+                        "surface-tint": "#51df9c",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container-lowest": "#0e0e0e",
+                        "inverse-primary": "#006c45",
+                        "on-surface-variant": "#bbcabe",
+                        "error": "#ffb4ab",
+                        "secondary-container": "#1f5037",
+                        "surface-container-low": "#1c1b1b",
+                        "secondary-fixed-dim": "#9fd2b2",
+                        "on-tertiary-fixed-variant": "#76330d",
+                        "primary-container": "#3ecf8e",
+                        "tertiary-fixed": "#ffdbcc",
+                        "primary-fixed": "#71fcb6",
+                        "inverse-surface": "#e5e2e1",
+                        "on-primary-fixed": "#002112",
+                        "error-container": "#93000a",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-container": "#005434",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "surface-container": "#201f1f",
+                        "on-secondary": "#023822",
+                        "inverse-on-surface": "#313030",
+                        "primary": "#60eca8",
+                        "background": "#131313"
+                    },
+                    fontFamily: {
+                        "headline": ["Geist"],
+                        "body": ["Geist"],
+                        "label": ["Geist Mono"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-[#1a1a1a] text-on-surface selection:bg-primary/30 overflow-hidden h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full h-10 bg-[#0e0e0e] z-50 flex items-center justify-between px-4">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-2">
+<div class="w-5 h-5 bg-[#3ECF8E] rounded-sm flex items-center justify-center green-glow">
+<span class="material-symbols-outlined text-on-primary text-[14px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<span class="text-sm font-bold text-white tracking-tight">Supactl</span>
+</div>
+<nav class="flex items-center gap-6 font-mono text-[11px] tracking-widest uppercase">
+<a class="text-white font-bold cursor-pointer duration-200" href="#">EXPLORER</a>
+<a class="text-zinc-500 hover:text-white transition-colors cursor-pointer duration-200" href="#">QUERY</a>
+<a class="text-zinc-500 hover:text-white transition-colors cursor-pointer duration-200" href="#">LOGS</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-zinc-500 hover:text-white transition-colors cursor-pointer text-[18px]">cloud_done</span>
+<span class="material-symbols-outlined text-zinc-500 hover:text-white transition-colors cursor-pointer text-[18px]">notifications</span>
+<div class="flex gap-2 ml-4">
+<span class="material-symbols-outlined text-zinc-500 hover:text-white transition-colors cursor-default text-[14px]">remove</span>
+<span class="material-symbols-outlined text-zinc-500 hover:text-white transition-colors cursor-default text-[14px]">fullscreen</span>
+<span class="material-symbols-outlined text-zinc-500 hover:text-white transition-colors cursor-default text-[14px]">close</span>
+</div>
+</div>
+</header>
+<!-- Main Shell Layout -->
+<main class="flex flex-1 pt-10 pb-6 overflow-hidden">
+<!-- SideNavBar -->
+<aside class="w-[220px] h-full bg-[#0e0e0e] flex flex-col py-4 shrink-0 border-r border-white/5">
+<div class="px-5 mb-6">
+<div class="text-xs font-bold text-white">Management Console</div>
+<div class="text-[#3ECF8E] text-[10px] font-mono uppercase tracking-widest">v1.2.0 stable</div>
+</div>
+<nav class="flex-1 flex flex-col">
+<a class="flex items-center gap-3 px-5 py-2.5 text-[#3ECF8E] border-l-2 border-[#3ECF8E] bg-[#1a1a1a] shadow-[0_0_8px_rgba(62,207,142,0.4)] font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">table_chart</span>
+<span>Tables</span>
+</a>
+<a class="flex items-center gap-3 px-5 py-2.5 text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span>SQL Editor</span>
+</a>
+<a class="flex items-center gap-3 px-5 py-2.5 text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Auth Users</span>
+</a>
+<a class="flex items-center gap-3 px-5 py-2.5 text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">database</span>
+<span>Storage</span>
+</a>
+<a class="flex items-center gap-3 px-5 py-2.5 text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">bolt</span>
+<span>Realtime</span>
+</a>
+<a class="flex items-center gap-3 px-5 py-2.5 text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">security</span>
+<span>RLS Policies</span>
+</a>
+<a class="flex items-center gap-3 px-5 py-2.5 text-zinc-400 hover:bg-[#1a1a1a] hover:text-zinc-100 font-sans text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="mt-auto px-5 pt-4 border-t border-white/5 space-y-2">
+<a class="flex items-center gap-3 text-zinc-400 hover:text-zinc-100 text-sm transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">description</span>
+<span>Docs</span>
+</a>
+<a class="flex items-center gap-3 text-zinc-400 hover:text-zinc-100 text-sm transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">help_outline</span>
+<span>Help</span>
+</a>
+</div>
+</aside>
+<!-- Table Editor Canvas (Center Panel) -->
+<section class="flex-1 flex flex-col bg-[#1a1a1a] overflow-hidden">
+<!-- Toolbar -->
+<header class="h-14 border-b border-white/5 px-4 flex items-center justify-between shrink-0">
+<div class="flex items-center gap-4">
+<nav class="flex items-center text-xs font-medium font-mono">
+<span class="text-[#5c5b5b] uppercase tracking-widest text-[10px]">public</span>
+<span class="material-symbols-outlined text-zinc-600 mx-1 text-[14px]">chevron_right</span>
+<span class="text-on-surface">users</span>
+</nav>
+<div class="h-4 w-[1px] bg-white/5 mx-2"></div>
+<div class="flex items-center gap-2">
+<button class="bg-[#3ECF8E] text-on-primary-container px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 hover:brightness-110 transition-all green-glow">
+<span class="material-symbols-outlined text-[14px]">add</span>
+                        Insert Row
+                    </button>
+<button class="text-zinc-400 hover:bg-surface-container-high px-2 py-1 rounded text-xs flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[14px]">filter_list</span>
+                        Filter
+                    </button>
+<button class="text-zinc-400 hover:bg-surface-container-high px-2 py-1 rounded text-xs flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[14px]">sort</span>
+                        Sort
+                    </button>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[14px]">search</span>
+<input class="bg-[#0e0e0e] border-none text-xs font-mono rounded px-8 py-1.5 w-48 focus:ring-1 focus:ring-primary/40 placeholder:text-zinc-600" placeholder="Search users..." type="text"/>
+</div>
+</div>
+</header>
+<!-- Spreadsheet Grid -->
+<div class="flex-1 overflow-auto scrollbar-hide relative">
+<table class="w-full border-collapse text-[13px] relative font-mono">
+<thead class="sticky top-0 z-20 bg-[#1a1a1a] shadow-[0_1px_0_rgba(255,255,255,0.05)]">
+<tr class="h-9">
+<th class="w-10 border-r border-white/5 p-0 bg-[#0e0e0e]"></th>
+<th class="border-r border-white/5 px-3 py-2 text-left font-medium min-w-[200px]">
+<div class="flex flex-col">
+<span class="text-on-surface">id</span>
+<span class="text-[10px] text-[#5c5b5b] uppercase tracking-widest">uuid</span>
+</div>
+</th>
+<th class="border-r border-white/5 px-3 py-2 text-left font-medium min-w-[150px]">
+<div class="flex flex-col">
+<span class="text-on-surface">created_at</span>
+<span class="text-[10px] text-[#5c5b5b] uppercase tracking-widest">timestamptz</span>
+</div>
+</th>
+<th class="border-r border-white/5 px-3 py-2 text-left font-medium min-w-[180px]">
+<div class="flex flex-col">
+<span class="text-on-surface">email</span>
+<span class="text-[10px] text-[#5c5b5b] uppercase tracking-widest">text</span>
+</div>
+</th>
+<th class="border-r border-white/5 px-3 py-2 text-left font-medium min-w-[120px]">
+<div class="flex flex-col">
+<span class="text-on-surface">is_active</span>
+<span class="text-[10px] text-[#5c5b5b] uppercase tracking-widest">bool</span>
+</div>
+</th>
+<th class="border-r border-white/5 px-3 py-2 text-left font-medium min-w-[200px]">
+<div class="flex flex-col">
+<span class="text-on-surface">metadata</span>
+<span class="text-[10px] text-[#5c5b5b] uppercase tracking-widest">jsonb</span>
+</div>
+</th>
+</tr>
+</thead>
+<tbody class="text-[12px]">
+<!-- Row 1 -->
+<tr class="h-[36px] border-b border-white/5 hover:bg-surface-container-high transition-colors">
+<td class="text-center text-zinc-600 bg-[#0e0e0e] border-r border-white/5">1</td>
+<td class="px-3 border-r border-white/5 text-primary green-glow">08e334...f231</td>
+<td class="px-3 border-r border-white/5 text-zinc-400">2023-10-24 14:22:01</td>
+<td class="px-3 border-r border-white/5 text-[#5c9ee0]">admin@supabase.io</td>
+<td class="px-3 border-r border-white/5 text-[#3ECF8E] green-glow">true</td>
+<td class="px-3 border-r border-white/5 text-zinc-500 italic">{"role": "admin"}</td>
+</tr>
+<!-- Row 2: Selected Row & Cell Edit State -->
+<tr class="h-[36px] border-b border-white/5 bg-[#3ECF8E]/5">
+<td class="text-center text-[#3ECF8E] bg-[#0e0e0e] border-r border-white/5 border-l-2 border-[#3ECF8E] green-glow">2</td>
+<td class="px-3 border-r border-white/5 text-[#3ECF8E] green-glow">550e84...e29b</td>
+<td class="px-3 border-r border-white/5 text-zinc-400">2023-10-24 15:45:12</td>
+<td class="px-3 border-r border-white/5 outline outline-1 outline-[#3ECF8E] relative">
+<div class="flex items-center h-full w-full">
+<span class="text-[#5c9ee0]">user_99@gmail.com</span>
+<span class="cursor-blink ml-0.5 h-4"></span>
+</div>
+</td>
+<td class="px-3 border-r border-white/5 text-[#3ECF8E] green-glow">true</td>
+<td class="px-3 border-r border-white/5 text-zinc-500 italic">{"status": "trial"}</td>
+</tr>
+<!-- Data Rows -->
+<script>
+                        for(let i=3; i<=30; i++) {
+                            document.write(`
+                                <tr class="h-[36px] border-b border-white/5 hover:bg-surface-container-high transition-colors">
+                                    <td class="text-center text-zinc-600 bg-[#0e0e0e] border-r border-white/5">${i}</td>
+                                    <td class="px-3 border-r border-white/5 text-zinc-400">f7b209...a1c${i}</td>
+                                    <td class="px-3 border-r border-white/5 text-zinc-500">2023-10-25 09:12:${10+i}</td>
+                                    <td class="px-3 border-r border-white/5 text-[#5c9ee0]">customer_${i}@example.com</td>
+                                    <td class="px-3 border-r border-white/5 text-[#e05252]">false</td>
+                                    <td class="px-3 border-r border-white/5 text-zinc-600 italic">null</td>
+                                </tr>
+                            `);
+                        }
+                    </script>
+</tbody>
+</table>
+</div>
+<!-- Grid Footer -->
+<footer class="h-9 border-t border-white/5 bg-[#1a1a1a] px-4 flex items-center justify-between shrink-0 text-[11px] font-mono text-zinc-500">
+<div class="flex items-center gap-4">
+<span>Showing 1–50 of 1,243 rows</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-1 hover:bg-surface-container-high rounded disabled:opacity-30 transition-colors" disabled="">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+<span class="text-on-surface">Page 1 of 25</span>
+<button class="p-1 hover:bg-surface-container-high rounded transition-colors">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</footer>
+</section>
+<!-- Table Info (Right Panel) -->
+<aside class="w-[200px] h-full bg-[#0e0e0e] border-l border-white/5 p-4 shrink-0 overflow-y-auto scrollbar-hide">
+<h3 class="text-[10px] uppercase tracking-widest text-[#5c5b5b] font-mono mb-4">Table Info</h3>
+<div class="space-y-6 font-mono">
+<section>
+<div class="text-[10px] text-[#5c5b5b] uppercase tracking-widest mb-1">Entity</div>
+<div class="text-sm font-semibold text-on-surface">users</div>
+<div class="text-[11px] text-zinc-500">schema: public</div>
+</section>
+<section class="space-y-3">
+<div class="flex justify-between items-center">
+<span class="text-xs text-zinc-500">Row Count</span>
+<span class="text-xs text-on-surface">1,243</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-zinc-500">Size on Disk</span>
+<span class="text-xs text-on-surface">156 KB</span>
+</div>
+</section>
+<section>
+<div class="text-[10px] text-[#5c5b5b] uppercase tracking-widest mb-2">Indexes</div>
+<ul class="space-y-1">
+<li class="text-[11px] bg-[#1a1a1a] p-2 rounded border border-white/5 text-zinc-400">
+                        users_pkey <span class="text-[10px] opacity-50 block">primary key (id)</span>
+</li>
+<li class="text-[11px] bg-[#1a1a1a] p-2 rounded border border-white/5 text-zinc-400">
+                        users_email_key <span class="text-[10px] opacity-50 block">unique (email)</span>
+</li>
+</ul>
+</section>
+<section>
+<div class="text-[10px] text-[#5c5b5b] uppercase tracking-widest mb-2">Foreign Keys</div>
+<ul class="space-y-1.5">
+<li class="flex items-center justify-between text-[11px] text-[#3ECF8E] hover:underline cursor-pointer green-glow">
+<span>organizations</span>
+<span class="material-symbols-outlined text-[14px]">arrow_right_alt</span>
+</li>
+<li class="flex items-center justify-between text-[11px] text-[#3ECF8E] hover:underline cursor-pointer green-glow">
+<span>billing_profiles</span>
+<span class="material-symbols-outlined text-[14px]">arrow_right_alt</span>
+</li>
+</ul>
+</section>
+</div>
+</aside>
+</main>
+<!-- Footer -->
+<footer class="h-6 w-full fixed bottom-0 left-0 right-0 z-50 bg-[#0e0e0e] border-t border-white/5 flex items-center px-4 justify-between font-mono text-[10px]">
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 bg-[#3ECF8E] rounded-full animate-pulse green-glow"></span>
+<span class="text-[#3ECF8E] tracking-tight">Connected</span>
+</div>
+<span class="text-zinc-500">•</span>
+<span class="text-zinc-500">PostgreSQL 15.3</span>
+<span class="text-zinc-500">•</span>
+<span class="text-zinc-500">db.supabase.co</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-zinc-500">v1.0.4-stable</span>
+</div>
+</footer>
+</body></html>
