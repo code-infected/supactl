@@ -317,13 +317,4 @@ Three Zustand stores manage all application state:
 
 ## Designer
 
-Designed by **Athul Nair M** using [Google Stitch](https://stitch.googleapis.com).
-
-Design system codename: **"Digital Obsidian"** — a philosophy of deep, monochromatic layering that feels carved from a single block of dark glass.
-
----
-
-<p align="center">
-  <sub>Built with Tauri v2 · React · TypeScript · Tailwind CSS</sub><br/>
-  <sub>Project codename: Supactl · v0.1.0 · March 2026</sub>
-</p>
+Designed by **Athul Nair M**

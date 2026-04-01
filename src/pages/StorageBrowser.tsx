@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useProjectStore } from "../store/projectStore";
 import { createSupabaseClient } from "../lib/supabase";
+import { ResizablePanel } from "../components/ResizablePanel";
 
 interface Bucket {
   id: string;
@@ -105,7 +106,7 @@ export default function StorageBrowser() {
     <div className="flex h-full w-full overflow-hidden bg-background font-sans">
       
       {/* 1. Left Buckets Panel */}
-      <aside className="w-[240px] bg-surface-container-lowest flex flex-col shrink-0 border-r border-white/5">
+      <ResizablePanel side="left" defaultWidth={240} minWidth={180} maxWidth={400} className="bg-surface-container-lowest flex flex-col border-r border-white/5">
         <div className="p-4 border-b border-white/5 shrink-0 flex items-center justify-between">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Storage</span>
           <button className="text-zinc-400 hover:text-white transition-colors">
@@ -156,7 +157,7 @@ export default function StorageBrowser() {
             );
           })}
         </nav>
-      </aside>
+      </ResizablePanel>
 
       {/* 2. Main File Grid */}
       <section className="flex-1 bg-surface-container flex flex-col overflow-hidden">
