@@ -309,7 +309,7 @@ export default function SqlEditor() {
       </div>
 
       {/* 3. Context Info (Right/Third Column) */}
-      <aside className="w-[240px] bg-background flex flex-col shrink-0 border-l border-white/5">
+      <ResizablePanel side="right" defaultWidth={240} minWidth={180} maxWidth={400} className="bg-background flex flex-col border-l border-white/5">
         <div className="h-9 px-4 flex items-center border-b border-white/5 shrink-0">
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest">Query History</span>
         </div>
@@ -334,7 +334,7 @@ export default function SqlEditor() {
             </>
           )}
         </div>
-      </aside>
+      </ResizablePanel>
     </div>
   );
 }
