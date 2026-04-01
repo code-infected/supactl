@@ -3,9 +3,12 @@
  * 
  * Uses the Supabase Management API to access project-level settings,
  * edge functions, migrations, and other management features.
+ * Uses Tauri HTTP plugin to bypass browser CORS restrictions.
  * 
  * API Docs: https://supabase.com/docs/reference/api/introduction
  */
+
+import { fetch } from '@tauri-apps/plugin-http';
 
 const MANAGEMENT_API_URL = 'https://api.supabase.com/v1';
 

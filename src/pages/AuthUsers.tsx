@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useProjectStore } from "../store/projectStore";
 import { createSupabaseClient } from "../lib/supabase";
 import { ResizablePanel } from "../components/ResizablePanel";
@@ -57,14 +58,14 @@ export default function AuthUsers() {
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Authentication</span>
         </div>
         <nav className="flex-1 py-4 space-y-1">
-          <a className="px-4 py-2 flex items-center gap-3 text-primary bg-surface-container border-l-2 border-primary shadow-glow cursor-pointer text-sm font-medium">
+          <Link to="/auth" className="px-4 py-2 flex items-center gap-3 text-primary bg-surface-container border-l-2 border-primary shadow-glow cursor-pointer text-sm font-medium">
             <span className="material-symbols-outlined text-[16px]">group</span>
             Users
-          </a>
-          <a className="px-4 py-2 flex items-center gap-3 text-zinc-400 hover:text-white transition-colors cursor-pointer text-sm">
+          </Link>
+          <Link to="/rls" className="px-4 py-2 flex items-center gap-3 text-zinc-400 hover:text-white transition-colors cursor-pointer text-sm">
             <span className="material-symbols-outlined text-[16px]">policy</span>
             Policies
-          </a>
+          </Link>
         </nav>
       </ResizablePanel>
 
