@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-interface ProjectState {
+export interface ProjectState {
   projectUrl: string | null;
   projectRef: string | null; // The project ID (xxxxxx from xxxxxx.supabase.co)
   serviceKey: string | null;
@@ -28,6 +28,13 @@ function extractProjectRef(url: string): string | null {
   }
 }
 
+/**
+ * Zustand store for managing project connection state
+ * 
+ * @example
+ * const { isConnected, projectUrl } = useProjectStore();
+ * const setCredentials = useProjectStore((state) => state.setCredentials);
+ */
 export const useProjectStore = create<ProjectState>((set) => ({
   projectUrl: null,
   projectRef: null,

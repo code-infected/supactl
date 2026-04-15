@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSchemaStore } from "../store/schemaStore";
+import { useProjectsStore } from "../store/projectsStore";
 import { createSupabaseClient } from "../lib/supabase";
-import { useProjectStore } from "../store/projectStore";
 import { ResizablePanel } from "../components/ResizablePanel";
+import { Tooltip, DisabledButtonWithTooltip } from "../components/ui/Tooltip";
+import { sanitizeTableName } from "../lib/security";
+import { log } from "../lib/logger";
+import { toast } from "../store/toastStore";
 
 export default function TableEditor() {
   const { tableName } = useParams<{ tableName: string }>();
@@ -11,11 +15,15 @@ export default function TableEditor() {
   const [search, setSearch] = useState("");
   
   const { tables: schemaTables, isLoading: schemaLoading, error: schemaError, fetchSchema } = useSchemaStore();
-  const { projectUrl, serviceKey } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const projectUrl = activeProject?.projectUrl;
+  const serviceKey = activeProject?.serviceKey;
   
   const [rows, setRows] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [tableIndexes, setTableIndexes] = useState<Array<{name: string, definition: string}>>([]);
+  const [tableStats, setTableStats] = useState<{rowCount: number | null}>({ rowCount: null });
 
   // Get table names from schema
   const displayTables = schemaTables.map(t => t.name);
@@ -32,6 +40,7 @@ export default function TableEditor() {
     }
   }, [tableName, displayTables, navigate]);
 
+  // Fetch table data
   useEffect(() => {
     async function fetchTableData() {
       if (!tableName || !projectUrl || !serviceKey) return;
@@ -43,18 +52,18 @@ export default function TableEditor() {
         const { data, error } = await supabase.from(tableName).select('*').limit(50);
         
         if (error) {
-          console.error("Error fetching table data:", error);
+          log.error("Error fetching table data", error, { tableName });
           setRows([]);
         } else if (data) {
           setRows(data);
           if (data.length > 0) {
             setColumns(Object.keys(data[0]));
           } else {
-            setColumns(["id", "created_at"]); // Default fallback purely for UI
+            setColumns(["id", "created_at"]);
           }
         }
       } catch (err) {
-        console.error(err);
+        log.error("Failed to fetch table data", err, { tableName });
       } finally {
         setLoading(false);
       }
@@ -62,6 +71,85 @@ export default function TableEditor() {
 
     fetchTableData();
   }, [tableName, projectUrl, serviceKey]);
+
+  // Fetch table indexes and stats
+  useEffect(() => {
+    async function fetchTableMetadata() {
+      if (!tableName || !projectUrl || !serviceKey) {
+        setTableIndexes([]);
+        setTableStats({ rowCount: null });
+        return;
+      }
+
+      try {
+        const supabase = createSupabaseClient(projectUrl, serviceKey);
+        
+        // SECURITY: Validate table name against known schema before using in SQL
+        const validatedTable = sanitizeTableName(tableName, displayTables);
+        if (!validatedTable) {
+          log.warn("Invalid table name attempted", { tableName });
+          setTableIndexes([]);
+          setTableStats({ rowCount: null });
+          return;
+        }
+        
+        log.debug("Fetching table metadata", { table: validatedTable });
+        
+        try {
+          const { data: indexData } = await supabase.rpc('exec_sql', {
+            sql: `
+              SELECT indexname as name, indexdef as definition
+              FROM pg_indexes 
+              WHERE tablename = '${validatedTable}' 
+              AND schemaname = 'public'
+            `
+          });
+          
+          if (indexData && Array.isArray(indexData)) {
+            setTableIndexes(indexData.map((idx: any) => ({
+              name: idx.name,
+              definition: idx.definition
+            })));
+          } else {
+            setTableIndexes([]);
+          }
+        } catch {
+          // Fallback: try to infer primary key from column names
+          const pkColumn = columns.find(c => c.toLowerCase() === 'id');
+          if (pkColumn) {
+            setTableIndexes([{ name: `${tableName}_pkey`, definition: `PRIMARY KEY (${pkColumn})` }]);
+          } else {
+            setTableIndexes([]);
+          }
+        }
+
+        // Fetch approximate row count from pg_stat_user_tables
+        try {
+          const { data: statsData } = await supabase.rpc('exec_sql', {
+            sql: `
+              SELECT n_live_tup as row_count
+              FROM pg_stat_user_tables 
+              WHERE relname = '${validatedTable}'
+            `
+          });
+          
+          if (statsData && Array.isArray(statsData) && statsData.length > 0) {
+            setTableStats({ rowCount: statsData[0].row_count });
+          } else {
+            setTableStats({ rowCount: null });
+          }
+        } catch {
+          setTableStats({ rowCount: null });
+        }
+      } catch (err) {
+        log.error('Error fetching table metadata', err, { tableName });
+        setTableIndexes([]);
+        setTableStats({ rowCount: null });
+      }
+    }
+
+    fetchTableMetadata();
+  }, [tableName, projectUrl, serviceKey, columns]);
 
   return (
     <div className="flex h-full w-full overflow-hidden font-sans bg-background">
@@ -136,18 +224,43 @@ export default function TableEditor() {
             </nav>
             <div className="h-4 w-[1px] bg-white/5 mx-2"></div>
             <div className="flex items-center gap-2">
-              <button disabled={!tableName} className="bg-primary-container text-on-primary-container disabled:opacity-50 px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 hover:brightness-110 transition-all shadow-glow">
-                <span className="material-symbols-outlined text-[14px]">add</span>
-                Insert Row
-              </button>
-              <button className="text-zinc-400 hover:bg-surface-container-high px-2 py-1 rounded text-xs flex items-center gap-1.5 transition-colors">
-                <span className="material-symbols-outlined text-[14px]">filter_list</span>
-                Filter
-              </button>
-              <button className="text-zinc-400 hover:bg-surface-container-high px-2 py-1 rounded text-xs flex items-center gap-1.5 transition-colors">
-                <span className="material-symbols-outlined text-[14px]">sort</span>
-                Sort
-              </button>
+              {tableName ? (
+                <Tooltip content="Insert new row into table" position="top">
+                  <button 
+                    onClick={() => toast.info("Insert Row", "Row insertion UI coming in a future update.")}
+                    className="bg-primary-container text-on-primary-container px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 hover:brightness-110 transition-all shadow-glow"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">add</span>
+                    Insert Row
+                  </button>
+                </Tooltip>
+              ) : (
+                <DisabledButtonWithTooltip
+                  label="Insert Row"
+                  icon="add"
+                  reason="Select a table first"
+                />
+              )}
+              
+              <Tooltip content="Filter rows (coming soon)" position="top">
+                <button 
+                  onClick={() => toast.info("Filter", "Filter feature coming in a future update.")}
+                  className="text-zinc-400 hover:bg-surface-container-high px-2 py-1 rounded text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[14px]">filter_list</span>
+                  Filter
+                </button>
+              </Tooltip>
+              
+              <Tooltip content="Sort rows (coming soon)" position="top">
+                <button 
+                  onClick={() => toast.info("Sort", "Sort feature coming in a future update.")}
+                  className="text-zinc-400 hover:bg-surface-container-high px-2 py-1 rounded text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[14px]">sort</span>
+                  Sort
+                </button>
+              </Tooltip>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -261,17 +374,35 @@ export default function TableEditor() {
               <section className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-zinc-500">Row Count</span>
-                  <span className="text-xs text-on-surface">~ {rows.length}</span>
+                  <span className="text-xs text-on-surface">
+                    {tableStats.rowCount !== null 
+                      ? tableStats.rowCount.toLocaleString() 
+                      : `~${rows.length} (loaded)`}
+                  </span>
                 </div>
               </section>
               
               <section>
-                <div className="text-[10px] text-[#5c5b5b] uppercase tracking-widest mb-2">Indexes</div>
-                <ul className="space-y-1">
-                  <li className="text-[11px] bg-surface-container p-2 rounded border border-white/5 text-zinc-400">
-                    {tableName}_pkey <span className="text-[10px] opacity-50 block mt-0.5">primary key</span>
-                  </li>
-                </ul>
+                <div className="text-[10px] text-[#5c5b5b] uppercase tracking-widest mb-2">
+                  Indexes ({tableIndexes.length})
+                </div>
+                {tableIndexes.length > 0 ? (
+                  <ul className="space-y-1">
+                    {tableIndexes.map((idx) => (
+                      <li key={idx.name} className="text-[11px] bg-surface-container p-2 rounded border border-white/5 text-zinc-400">
+                        <span className="font-medium text-slate-300">{idx.name}</span>
+                        {idx.definition.includes('PRIMARY KEY') && (
+                          <span className="text-[10px] text-primary block mt-0.5">primary key</span>
+                        )}
+                        {idx.definition.includes('UNIQUE') && !idx.definition.includes('PRIMARY KEY') && (
+                          <span className="text-[10px] text-amber-500 block mt-0.5">unique</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[11px] text-zinc-500 italic">No indexes found</p>
+                )}
               </section>
             </div>
           ) : (

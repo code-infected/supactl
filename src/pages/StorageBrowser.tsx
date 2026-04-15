@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useProjectStore } from "../store/projectStore";
+import { useProjectsStore } from "../store/projectsStore";
 import { createSupabaseClient } from "../lib/supabase";
 import { ResizablePanel } from "../components/ResizablePanel";
 
@@ -25,7 +25,9 @@ interface FileObject {
 }
 
 export default function StorageBrowser() {
-  const { projectUrl, serviceKey } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const projectUrl = activeProject?.projectUrl;
+  const serviceKey = activeProject?.serviceKey;
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [files, setFiles] = useState<FileObject[]>([]);
   const [activeBucket, setActiveBucket] = useState<string | null>(null);

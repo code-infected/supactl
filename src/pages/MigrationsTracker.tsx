@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { useProjectStore } from "../store/projectStore";
+import { useProjectsStore } from "../store/projectsStore";
 import { createManagementClient } from "../lib/management-api";
 import { ResizablePanel } from "../components/ResizablePanel";
+import { log } from "../lib/logger";
 
 interface Migration {
   id: string;
@@ -22,7 +23,11 @@ interface Migration {
 }
 
 export default function MigrationsTracker() {
-  const { projectUrl, serviceKey, managementToken, projectRef } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const projectUrl = activeProject?.projectUrl;
+  const serviceKey = activeProject?.serviceKey;
+  const managementToken = activeProject?.managementToken;
+  const projectRef = activeProject?.projectRef;
   const [activeMigrationId, setActiveMigrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'sql' | 'diff'>('sql');
   
@@ -49,7 +54,7 @@ export default function MigrationsTracker() {
         const data = await client.listMigrations();
         
         // Transform API response to our Migration interface
-        const transformed: Migration[] = data.map((m, index) => ({
+        const transformed: Migration[] = data.map((m) => ({
           id: m.version,
           name: m.name || `Migration ${m.version}`,
           version: m.version,
@@ -71,7 +76,7 @@ export default function MigrationsTracker() {
           setActiveMigrationId(transformed[0].id);
         }
       } catch (err: any) {
-        console.error('Failed to fetch migrations:', err);
+        log.error('Failed to fetch migrations', err);
         setError(err.message || 'Failed to fetch migrations');
         setMigrations([]);
       } finally {

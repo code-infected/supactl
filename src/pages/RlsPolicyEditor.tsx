@@ -3,9 +3,10 @@ import CodeMirror from '@uiw/react-codemirror';
 import { sql as sqlLang } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { useSchemaStore } from "../store/schemaStore";
-import { useProjectStore } from "../store/projectStore";
+import { useProjectsStore } from "../store/projectsStore";
 import { createSupabaseClient } from "../lib/supabase";
 import { ResizablePanel } from "../components/ResizablePanel";
+import { log } from "../lib/logger";
 
 interface Policy {
   id: string;
@@ -24,7 +25,9 @@ interface TablePolicyMeta {
 
 export default function RlsPolicyEditor() {
   const { tables } = useSchemaStore();
-  const { projectUrl, serviceKey } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const projectUrl = activeProject?.projectUrl;
+  const serviceKey = activeProject?.serviceKey;
   
   const [tablePolicies, setTablePolicies] = useState<Record<string, TablePolicyMeta>>({});
   const [loading, setLoading] = useState(false);
@@ -67,15 +70,23 @@ export default function RlsPolicyEditor() {
         
         // Fetch RLS status and policies via raw SQL query
         // Using pg_policies and pg_tables system views
-        const { data: rlsData, error: rlsError } = await supabase.rpc('exec_sql', {
-          sql: `
-            SELECT 
-              t.tablename as table_name,
-              t.rowsecurity as rls_enabled
-            FROM pg_tables t
-            WHERE t.schemaname = 'public'
-          `
-        }).catch(() => ({ data: null, error: { message: 'exec_sql not available' } }));
+        let rlsData = null;
+        let rlsError = null;
+        try {
+          const result = await supabase.rpc('exec_sql', {
+            sql: `
+              SELECT 
+                t.tablename as table_name,
+                t.rowsecurity as rls_enabled
+              FROM pg_tables t
+              WHERE t.schemaname = 'public'
+            `
+          });
+          rlsData = result.data;
+          rlsError = result.error;
+        } catch (e) {
+          rlsError = { message: 'exec_sql not available' };
+        }
 
         // Update RLS status if available
         if (rlsData && !rlsError && Array.isArray(rlsData)) {
@@ -87,21 +98,29 @@ export default function RlsPolicyEditor() {
         }
 
         // Try to fetch policies from pg_policies
-        const { data: policiesData, error: policiesError } = await supabase.rpc('exec_sql', {
-          sql: `
-            SELECT 
-              schemaname,
-              tablename as table_name,
-              policyname as name,
-              permissive,
-              roles,
-              cmd as command,
-              qual,
-              with_check
-            FROM pg_policies
-            WHERE schemaname = 'public'
-          `
-        }).catch(() => ({ data: null, error: { message: 'exec_sql not available' } }));
+        let policiesData = null;
+        let policiesError = null;
+        try {
+          const result = await supabase.rpc('exec_sql', {
+            sql: `
+              SELECT 
+                schemaname,
+                tablename as table_name,
+                policyname as name,
+                permissive,
+                roles,
+                cmd as command,
+                qual,
+                with_check
+              FROM pg_policies
+              WHERE schemaname = 'public'
+            `
+          });
+          policiesData = result.data;
+          policiesError = result.error;
+        } catch (e) {
+          policiesError = { message: 'exec_sql not available' };
+        }
         
         if (policiesData && !policiesError && Array.isArray(policiesData)) {
           for (const policy of policiesData) {
@@ -121,7 +140,7 @@ export default function RlsPolicyEditor() {
         
         setTablePolicies(policiesMap);
       } catch (err: any) {
-        console.error('Failed to fetch policies:', err);
+        log.error('Failed to fetch policies', err);
         // Don't set error - just show tables without policy data
         // The RPC might not exist and that's ok
         const policiesMap: Record<string, TablePolicyMeta> = {};

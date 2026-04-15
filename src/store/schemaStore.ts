@@ -1,13 +1,14 @@
 import { create } from 'zustand';
+import { log } from '../lib/logger';
 import { createSupabaseClient } from '../lib/supabase';
 
-interface TableInfo {
+export interface TableInfo {
   name: string;
   schema: string;
   rowCount?: number;
 }
 
-interface SchemaState {
+export interface SchemaState {
   tables: TableInfo[];
   isLoading: boolean;
   error: string | null;
@@ -18,6 +19,13 @@ interface SchemaState {
   clear: () => void;
 }
 
+/**
+ * Zustand store for managing database schema state
+ * 
+ * @example
+ * const { tables, isLoading } = useSchemaStore();
+ * const fetchSchema = useSchemaStore((state) => state.fetchSchema);
+ */
 export const useSchemaStore = create<SchemaState>((set) => ({
   tables: [],
   isLoading: false,
@@ -42,7 +50,7 @@ export const useSchemaStore = create<SchemaState>((set) => ({
       if (error) {
         // Fallback: Try to get tables via a different method
         // Query pg_catalog for table names (requires custom RPC)
-        console.warn('RPC get_public_tables not available, trying alternative method');
+        log.warn('RPC get_public_tables not available, trying alternative method');
         
         // Alternative: Use PostgREST introspection
         // The Supabase client doesn't expose schema introspection directly,
@@ -80,7 +88,7 @@ export const useSchemaStore = create<SchemaState>((set) => ({
       
       set({ tables, isLoading: false, error: null });
     } catch (err: any) {
-      console.error('Failed to fetch schema:', err);
+      log.error('Failed to fetch schema', err, { projectUrl });
       set({ 
         tables: [], 
         isLoading: false, 

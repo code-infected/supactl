@@ -1,12 +1,19 @@
 import { create } from 'zustand';
 
-interface UiState {
+export interface UiState {
   commandPaletteOpen: boolean;
   sidebarCollapsed: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
 }
 
+/**
+ * Zustand store for managing UI state
+ * 
+ * @example
+ * const { sidebarCollapsed } = useUiStore();
+ * const setSidebarCollapsed = useUiStore((state) => state.setSidebarCollapsed);
+ */
 export const useUiStore = create<UiState>((set) => ({
   commandPaletteOpen: false,
   sidebarCollapsed: false,

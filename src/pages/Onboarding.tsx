@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProjectStore } from "../store/projectStore";
+import { useProjectsStore } from "../store/projectsStore";
 import { useSchemaStore } from "../store/schemaStore";
-import { saveCredentials } from "../lib/storage";
+import { audit } from "../lib/audit";
+import { log } from "../lib/logger";
+import { isValidSupabaseUrl } from "../lib/security";
 import { createSupabaseClient } from "../lib/supabase";
+import { createManagementClient } from "../lib/management-api";
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
@@ -11,6 +14,7 @@ export default function Onboarding() {
   const [key, setKey] = useState("");
   const [anonKey, setAnonKey] = useState("");
   const [managementToken, setManagementToken] = useState("");
+  const [customName, setCustomName] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [showManagement, setShowManagement] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -18,8 +22,7 @@ export default function Onboarding() {
   const [isTesting, setIsTesting] = useState(false);
   
   const navigate = useNavigate();
-  const setCredentials = useProjectStore((state) => state.setCredentials);
-  const setConnected = useProjectStore((state) => state.setConnected);
+  const addProject = useProjectsStore((state) => state.addProject);
   const fetchSchema = useSchemaStore((state) => state.fetchSchema);
 
   const handleConnect = async (e: React.FormEvent) => {
@@ -28,11 +31,12 @@ export default function Onboarding() {
     setIsTesting(true);
 
     try {
-      // Basic validation
-      if (!url.startsWith('https://')) {
-        throw new Error("URL must start with https://");
+      // Security validation
+      if (!isValidSupabaseUrl(url)) {
+        throw new Error("Invalid Supabase URL. Must be https://xxxxxx.supabase.co");
       }
       
+      log.info("Testing project connection", { url });
       const supabase = createSupabaseClient(url, key);
       
       // Perform a lightweight check to ensure valid credentials. 
@@ -50,20 +54,81 @@ export default function Onboarding() {
          }
       }
 
-      await saveCredentials(url, key, anonKey || undefined, managementToken || undefined);
-      setCredentials(url, key, anonKey || undefined, managementToken || undefined);
-      setConnected(true);
+      // Try to get actual project name from Management API if token provided
+      let projectName = customName.trim();
+      if (!projectName && managementToken) {
+        try {
+          const projectRef = extractProjectRef(url);
+          if (projectRef) {
+            const client = createManagementClient(managementToken, projectRef);
+            const projectInfo = await client.getProject();
+            projectName = projectInfo.name;
+            log.info("Fetched project name from Management API", { name: projectName });
+          }
+        } catch (err) {
+          log.warn("Could not fetch project name from Management API, using fallback", err);
+        }
+      }
+      // Fallback to project ref from URL if no custom name or API name
+      if (!projectName) {
+        projectName = extractProjectName(url);
+      }
+
+      // Add to multi-project store (replaces legacy saveCredentials)
+      const projectRef = extractProjectRef(url) || '';
+      const projectId = addProject({
+        name: projectName,
+        projectUrl: url,
+        projectRef,
+        serviceKey: key,
+        anonKey: anonKey || undefined,
+        managementToken: managementToken || undefined,
+      });
+      
+      log.info("Project added successfully", { projectId, url });
+      
+      // Audit log the connection
+      audit("PROJECT_CONNECT", { 
+        projectUrl: url, 
+        hasAnonKey: !!anonKey,
+        hasManagementToken: !!managementToken 
+      }, { projectId });
       
       // Fetch database schema after connecting
       await fetchSchema(url, key);
       
       setStep(3);
     } catch (err: any) {
+      log.error("Failed to connect project", err, { url });
+      audit("PROJECT_CONNECT", { 
+        projectUrl: url, 
+        error: err.message 
+      }, { success: false, errorMessage: err.message });
       setError(err.message || "Failed to connect to the project");
     } finally {
       setIsTesting(false);
     }
   };
+  
+  // Helper to extract project ref from URL
+  function extractProjectRef(url: string): string | null {
+    try {
+      const hostname = new URL(url).hostname;
+      const parts = hostname.split('.');
+      if (parts.length >= 2 && parts[1] === 'supabase') {
+        return parts[0];
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Helper to extract project name from URL (fallback)
+  function extractProjectName(url: string): string {
+    const ref = extractProjectRef(url);
+    return ref ? `Project ${ref.slice(0, 8)}...` : 'My Project';
+  }
 
   return (
     <div className="flex flex-col items-center justify-center w-full h-[calc(100vh-64px)] p-6">
@@ -104,6 +169,22 @@ export default function Onboarding() {
                 className="bg-surface-high border border-DEFAULT hover:border-hover focus:border-primary focus:outline-none rounded px-3 py-2 text-sm transition-colors"
                 autoFocus
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[#5c5b5b]">
+                Project Name <span className="text-dimmer font-normal">(Optional)</span>
+              </label>
+              <input 
+                type="text" 
+                placeholder={url ? extractProjectName(url) : "My Project"}
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className="bg-surface-high border border-DEFAULT hover:border-hover focus:border-primary focus:outline-none rounded px-3 py-2 text-sm transition-colors"
+              />
+              <p className="text-[10px] text-dimmer">
+                {managementToken ? "Leave empty to auto-fetch from Management API" : "Leave empty to use project reference"}
+              </p>
             </div>
             
             <div className="flex flex-col gap-1.5">

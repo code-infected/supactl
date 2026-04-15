@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useProjectStore } from "../store/projectStore";
+import { useProjectsStore } from "../store/projectsStore";
 import { createManagementClient } from "../lib/management-api";
 import { ResizablePanel } from "../components/ResizablePanel";
+import { log } from "../lib/logger";
 
 interface EdgeFunction {
   id: string;
@@ -24,7 +25,11 @@ interface LogEntry {
 }
 
 export default function EdgeFunctionLogs() {
-  const { projectUrl, serviceKey, managementToken, projectRef } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const projectUrl = activeProject?.projectUrl;
+  const serviceKey = activeProject?.serviceKey;
+  const managementToken = activeProject?.managementToken;
+  const projectRef = activeProject?.projectRef;
   const [activeFunc, setActiveFunc] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
@@ -58,7 +63,7 @@ export default function EdgeFunctionLogs() {
           setActiveFunc(data[0].slug);
         }
       } catch (err: any) {
-        console.error('Failed to fetch edge functions:', err);
+        log.error('Failed to fetch edge functions', err);
         setError(err.message || 'Failed to fetch edge functions');
         setFunctions([]);
       } finally {
@@ -68,6 +73,30 @@ export default function EdgeFunctionLogs() {
 
     fetchFunctions();
   }, [hasManagementApi, managementToken, projectRef]);
+
+  // Fetch logs when active function changes
+  useEffect(() => {
+    if (!hasManagementApi || !activeFunc) {
+      setLogs([]);
+      return;
+    }
+
+    const fetchLogs = async () => {
+      try {
+        const client = createManagementClient(managementToken!, projectRef!);
+        // Note: Management API v1 doesn't expose detailed logs endpoint
+        // This is a placeholder - logs would need direct Postgres access or API v2
+        log.debug('Fetching logs for function', { function: activeFunc });
+        // Simulated empty response since API doesn't support it yet
+        setLogs([]);
+      } catch (err: any) {
+        log.error('Failed to fetch function logs', err, { function: activeFunc });
+        setLogs([]);
+      }
+    };
+
+    fetchLogs();
+  }, [hasManagementApi, activeFunc, managementToken, projectRef]);
 
   const getStatusDot = (status: string) => {
     switch(status) {

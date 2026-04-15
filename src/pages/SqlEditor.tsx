@@ -3,7 +3,7 @@ import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { useSchemaStore } from "../store/schemaStore";
-import { useProjectStore } from "../store/projectStore";
+import { useProjectsStore } from "../store/projectsStore";
 import { createSupabaseClient } from "../lib/supabase";
 import { ResizablePanel } from "../components/ResizablePanel";
 
@@ -19,7 +19,9 @@ interface QueryTab {
 
 export default function SqlEditor() {
   const { tables } = useSchemaStore();
-  const { projectUrl, serviceKey } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const projectUrl = activeProject?.projectUrl;
+  const serviceKey = activeProject?.serviceKey;
   
   const [tabs, setTabs] = useState<QueryTab[]>([
     {

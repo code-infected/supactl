@@ -7,22 +7,74 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Build outputs
 dist
 dist-ssr
-*.local
+build
+out
 
-# Editor directories and files
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Coverage reports
+coverage/
+*.lcov
+.nyc_output
+
+# Tauri build artifacts
+src-tauri/target/
+src-tauri/Cargo.lock
+*.dll
+*.dll.exp
+*.dll.lib
+*.exe
+*.msi
+
+# IDE and editor files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+.DS_Store
+*.swp
+*.swo
+*~
 
-.env
+# Windsurf/AI assistant files
+.windsurf/
 context.md
 claude-auto-learn.md
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+.cache/
+temp/
+tmp/
+
+# HTML temp files (design drafts)
+*_temp.html
+
+# Lock files (keep pnpm-lock.yaml for consistency)
+# pnpm-lock.yaml  # Uncomment if you want to ignore lock files
+package-lock.json
+yarn.lock
+
+# Local Netlify folder
+.netlify
+
+# TypeScript
+*.tsbuildinfo

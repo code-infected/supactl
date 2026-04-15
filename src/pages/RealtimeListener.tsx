@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useProjectStore } from "../store/projectStore";
+import { useProjectsStore } from "../store/projectsStore";
 import { createSupabaseClient } from "../lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { ResizablePanel } from "../components/ResizablePanel";
@@ -13,7 +13,9 @@ interface RealtimeEvent {
 }
 
 export default function RealtimeListener() {
-  const { projectUrl, serviceKey } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const projectUrl = activeProject?.projectUrl;
+  const serviceKey = activeProject?.serviceKey;
   const [isConnected, setIsConnected] = useState(false);
   const [channelInput, setChannelInput] = useState("public:*");
   const [events, setEvents] = useState<RealtimeEvent[]>([]);
@@ -173,26 +175,27 @@ export default function RealtimeListener() {
           </div>
           
           <nav className="flex-1 overflow-y-auto w-full py-2 space-y-2 px-4">
-            {/* Active Subscription Mock */}
-            <div className="bg-[#131313] border border-white/5 rounded-lg p-3 group relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-primary shadow-glow"></div>
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-sm font-medium text-slate-200 mb-1">{channelInput}</div>
-                  <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-500">
-                    <span className="bg-surface-container px-1 py-0.5 rounded border border-white/5">postgres_changes</span>
+            {isConnected ? (
+              <div className="bg-[#131313] border border-primary/30 rounded-lg p-3 group relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-primary shadow-glow"></div>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-slate-200 mb-1">{channelInput}</div>
+                    <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-500">
+                      <span className="bg-surface-container px-1 py-0.5 rounded border border-white/5">postgres_changes</span>
+                      <span className="bg-primary/10 text-primary px-1 py-0.5 rounded">listening</span>
+                    </div>
                   </div>
-                </div>
-                {isConnected ? (
                   <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-glow animate-pulse mt-1.5"></span>
-                ) : (
-                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 mt-1.5"></span>
-                )}
+                </div>
               </div>
-              <button className="absolute right-2 bottom-2 text-zinc-600 hover:text-error transition-colors">
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
-            </div>
+            ) : (
+              <div className="text-zinc-500 text-xs text-center py-8">
+                <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">cell_tower</span>
+                <p>Connect to start listening</p>
+                <p className="text-[10px] mt-1">Click Connect to subscribe to changes</p>
+              </div>
+            )}
           </nav>
         </ResizablePanel>
 

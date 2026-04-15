@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { useProjectStore } from "../store/projectStore";
+import { useProjectsStore } from "../store/projectsStore";
 import { ResizablePanel } from "../components/ResizablePanel";
 
 export default function ProjectKeys() {
-  const { projectUrl, serviceKey, anonKey } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const projectUrl = activeProject?.projectUrl;
+  const serviceKey = activeProject?.serviceKey;
+  const anonKey = activeProject?.anonKey;
   const [showAnon, setShowAnon] = useState(false);
   const [showService, setShowService] = useState(false);
   
