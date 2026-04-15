@@ -9,6 +9,7 @@
  */
 
 import { fetch } from '@tauri-apps/plugin-http';
+import { log } from './logger';
 
 const MANAGEMENT_API_URL = 'https://api.supabase.com/v1';
 
@@ -57,6 +58,8 @@ export class ManagementApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${MANAGEMENT_API_URL}${endpoint}`;
     
+    log.debug('Management API request', { url, projectRef: this.projectRef, tokenPrefix: this.token.slice(0, 10) + '...' });
+    
     try {
       const response = await fetch(url, {
         ...options,
@@ -67,8 +70,11 @@ export class ManagementApiClient {
         },
       });
 
+      log.debug('Management API response', { status: response.status, statusText: response.statusText });
+
       if (!response.ok) {
         const errorBody = await response.text();
+        log.error('Management API error', { status: response.status, body: errorBody });
         if (response.status === 401) {
           throw new Error('Invalid or expired Management API token. Please generate a new token from supabase.com/dashboard/account/tokens');
         }
@@ -83,6 +89,7 @@ export class ManagementApiClient {
 
       return response.json();
     } catch (err: any) {
+      log.error('Management API request failed', err, { url });
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         throw new Error('Network error. Check your internet connection or the Management API might be blocking browser requests.');
       }
@@ -138,12 +145,18 @@ export class ManagementApiClient {
   /**
    * Test if the token and project ref are valid
    */
-  async testConnection(): Promise<boolean> {
+  async testConnection(): Promise<{ success: boolean; error?: string; status?: number }> {
     try {
-      await this.getProject();
-      return true;
-    } catch {
-      return false;
+      const project = await this.getProject();
+      log.info('Management API connection test successful', { projectId: project.id, projectName: project.name });
+      return { success: true };
+    } catch (err: any) {
+      log.error('Management API connection test failed', err);
+      return { 
+        success: false, 
+        error: err.message,
+        status: err.status 
+      };
     }
   }
 }

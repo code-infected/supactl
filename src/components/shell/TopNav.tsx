@@ -2,13 +2,16 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useSchemaStore } from "../../store/schemaStore";
-import { useProjectStore } from "../../store/projectStore";
+import { useProjectsStore } from "../../store/projectsStore";
 
 export function TopNav() {
   const [os, setOs] = useState<"mac" | "win" | "linux" | "unknown">("unknown");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { fetchSchema } = useSchemaStore();
-  const { isConnected, projectUrl, serviceKey } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const projectUrl = activeProject?.projectUrl;
+  const serviceKey = activeProject?.serviceKey;
+  const isConnected = !!activeProject;
 
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();

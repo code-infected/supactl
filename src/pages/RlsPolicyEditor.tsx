@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import CodeMirror from '@uiw/react-codemirror';
 import { sql as sqlLang } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -33,7 +33,11 @@ export default function RlsPolicyEditor() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const displayTables = tables && tables.length > 0 ? tables.map(t => t.name) : [];
+  // Memoize to prevent infinite re-renders
+  const displayTables = useMemo(() => 
+    tables && tables.length > 0 ? tables.map(t => t.name) : [], 
+    [tables]
+  );
   const [activeTable, setActiveTable] = useState<string>("");
 
   // Set initial active table when tables load

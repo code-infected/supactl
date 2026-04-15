@@ -37,21 +37,40 @@ export default function MigrationsTracker() {
 
   const isConnected = projectUrl && serviceKey;
   const hasManagementApi = managementToken && projectRef;
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
 
-  // Fetch migrations when management token is available
-  useEffect(() => {
+  const testConnection = async () => {
+    if (!managementToken || !projectRef) return;
+    setTestStatus('testing');
+    try {
+      const client = createManagementClient(managementToken, projectRef);
+      const result = await client.testConnection();
+      if (result.success) {
+        setTestStatus('success');
+        setError(null);
+        // Refresh migrations after successful test
+        fetchMigrations();
+      } else {
+        setTestStatus('error');
+        setError(result.error || 'Invalid token or project reference');
+      }
+    } catch (err: any) {
+      setTestStatus('error');
+      setError(err.message);
+    }
+  };
+
+  const fetchMigrations = async () => {
     if (!hasManagementApi) {
       setMigrations([]);
       return;
     }
-
-    const fetchMigrations = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const client = createManagementClient(managementToken!, projectRef!);
-        const data = await client.listMigrations();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const client = createManagementClient(managementToken!, projectRef!);
+      const data = await client.listMigrations();
         
         // Transform API response to our Migration interface
         const transformed: Migration[] = data.map((m) => ({
@@ -76,7 +95,11 @@ export default function MigrationsTracker() {
           setActiveMigrationId(transformed[0].id);
         }
       } catch (err: any) {
-        log.error('Failed to fetch migrations', err);
+        log.error('Failed to fetch migrations', err, { 
+          projectRef,
+          tokenPrefix: managementToken?.substring(0, 10) + '...',
+          hasManagementToken: !!managementToken 
+        });
         setError(err.message || 'Failed to fetch migrations');
         setMigrations([]);
       } finally {
@@ -84,8 +107,11 @@ export default function MigrationsTracker() {
       }
     };
 
+  // Fetch migrations when management token is available
+  useEffect(() => {
     fetchMigrations();
-  }, [hasManagementApi, managementToken, projectRef]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasManagementApi]);
 
   const activeMigration = migrations.find(m => m.id === activeMigrationId) || null;
 
@@ -138,11 +164,29 @@ export default function MigrationsTracker() {
                 <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50 animate-spin">autorenew</span>
                 Loading migrations...
               </div>
+            ) : testStatus === 'success' ? (
+              <div className="p-4 text-primary text-xs text-center">
+                <span className="material-symbols-outlined text-[24px] block mb-2">check_circle</span>
+                <p className="mb-2">Connection successful!</p>
+                <p className="text-[10px] text-zinc-500">Management API is working.</p>
+              </div>
             ) : error ? (
               <div className="p-4 text-error text-xs text-center">
                 <span className="material-symbols-outlined text-[24px] block mb-2 opacity-50">error</span>
-                <p className="mb-2">{error}</p>
-                <p className="text-[10px] text-zinc-500">Check your Management API token.</p>
+                <p className="mb-2 font-mono text-[10px] bg-error/10 p-2 rounded break-all">{error}</p>
+                <p className="text-[10px] text-zinc-500 mb-3">
+                  Token: {managementToken?.slice(0, 10)}...<br/>
+                  Ref: {projectRef}
+                </p>
+                <button 
+                  onClick={testConnection}
+                  disabled={testStatus === 'testing'}
+                  className="text-primary border border-primary/30 hover:bg-primary/10 px-3 py-1.5 rounded text-[10px] transition-colors"
+                >
+                  {testStatus === 'testing' ? (
+                    <><span className="material-symbols-outlined text-[12px] animate-spin inline-block mr-1">autorenew</span>Testing...</>
+                  ) : 'Test Connection'}
+                </button>
               </div>
             ) : migrations.length === 0 ? (
               <div className="p-4 text-zinc-500 text-xs text-center">

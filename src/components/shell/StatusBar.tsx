@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
-import { useProjectStore } from "../../store/projectStore";
+import { useProjectsStore } from "../../store/projectsStore";
 import { useSchemaStore } from "../../store/schemaStore";
 import { createSupabaseClient } from "../../lib/supabase";
 
 export function StatusBar() {
-  const { isConnected, isConnecting, projectUrl, projectRef, serviceKey } = useProjectStore();
+  const activeProject = useProjectsStore((state) => state.getActiveProject());
+  const isConnecting = useProjectsStore((state) => state.isConnecting);
+  const projectUrl = activeProject?.projectUrl;
+  const projectRef = activeProject?.projectRef;
+  const serviceKey = activeProject?.serviceKey;
+  const isConnected = !!activeProject;
   const { isLoading: schemaLoading, error: schemaError } = useSchemaStore();
   const [postgresVersion, setPostgresVersion] = useState<string | null>(null);
   const [versionLoading, setVersionLoading] = useState(false);

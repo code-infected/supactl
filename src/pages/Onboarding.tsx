@@ -23,7 +23,12 @@ export default function Onboarding() {
   
   const navigate = useNavigate();
   const addProject = useProjectsStore((state) => state.addProject);
+  const existingProjects = useProjectsStore((state) => state.projects);
   const fetchSchema = useSchemaStore((state) => state.fetchSchema);
+  
+  // Check if any existing project has a Management API token
+  const existingToken = existingProjects.find(p => p.managementToken)?.managementToken;
+  const hasExistingToken = !!existingToken;
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,10 +253,25 @@ export default function Onboarding() {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[#5c5b5b]">
                     Management API Token <span className="text-muted font-normal">(optional)</span>
                   </label>
+                  
+                  {hasExistingToken && !managementToken && (
+                    <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/20 rounded text-sm">
+                      <span className="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+                      <span className="text-primary">Token available from existing project</span>
+                      <button
+                        type="button"
+                        onClick={() => setManagementToken(existingToken!)}
+                        className="ml-auto text-xs text-primary hover:text-white underline"
+                      >
+                        Use it
+                      </button>
+                    </div>
+                  )}
+                  
                   <div className="relative flex items-center">
                     <input 
                       type={showManagement ? "text" : "password"} 
-                      placeholder="sbp_xxxxxxxxxxxxxxxxxxxxxxxx"
+                      placeholder={hasExistingToken ? "Using existing token or enter new..." : "sbp_xxxxxxxxxxxxxxxxxxxxxxxx"}
                       value={managementToken}
                       onChange={(e) => setManagementToken(e.target.value)}
                       className="bg-surface-high border border-DEFAULT hover:border-hover focus:border-primary focus:outline-none rounded px-3 py-2 text-sm w-full pr-10 transition-colors"
@@ -268,6 +288,9 @@ export default function Onboarding() {
                   </div>
                   <p className="text-[11px] text-muted">
                     Enables Edge Functions logs, migrations, and project settings.
+                    {hasExistingToken && (
+                      <span className="text-primary ml-1">✓ One token works for all your projects</span>
+                    )}
                     <a 
                       href="https://supabase.com/dashboard/account/tokens" 
                       target="_blank" 

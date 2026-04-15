@@ -25,21 +25,30 @@ export default function ProjectKeys() {
           <span className="text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest font-mono">Project Settings</span>
         </div>
         <nav className="flex-1 py-4 space-y-1">
-          <a className="px-4 py-2 flex items-center gap-3 text-zinc-400 hover:text-white transition-colors cursor-pointer text-sm">
-            <span className="material-symbols-outlined text-[16px]">tune</span>
-            Generals
+          <a className="px-4 py-2 flex items-center justify-between text-zinc-600 cursor-not-allowed text-sm">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[16px]">tune</span>
+              Generals
+            </div>
+            <span className="text-[9px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded">Soon</span>
           </a>
-          <a className="px-4 py-2 flex items-center gap-3 text-zinc-400 hover:text-white transition-colors cursor-pointer text-sm">
-            <span className="material-symbols-outlined text-[16px]">dns</span>
-            Database
+          <a className="px-4 py-2 flex items-center justify-between text-zinc-600 cursor-not-allowed text-sm">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[16px]">dns</span>
+              Database
+            </div>
+            <span className="text-[9px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded">Soon</span>
           </a>
           <a className="px-4 py-2 flex items-center gap-3 text-primary bg-surface-container border-l-2 border-primary shadow-glow cursor-pointer text-sm font-medium">
             <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>key</span>
             API Keys
           </a>
-          <a className="px-4 py-2 flex items-center gap-3 text-zinc-400 hover:text-white transition-colors cursor-pointer text-sm">
-            <span className="material-symbols-outlined text-[16px]">webhook</span>
-            Webhooks
+          <a className="px-4 py-2 flex items-center justify-between text-zinc-600 cursor-not-allowed text-sm">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[16px]">webhook</span>
+              Webhooks
+            </div>
+            <span className="text-[9px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded">Soon</span>
           </a>
         </nav>
       </ResizablePanel>
